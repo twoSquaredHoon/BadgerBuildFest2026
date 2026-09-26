@@ -25,9 +25,12 @@ What you end up with:
 2. Paste the whole contents of `supabase/migrations/0001_init.sql` and click **Run**. It should say "Success. No rows returned".
 3. Check **Table Editor**: you should see `vets`, `owners`, `dogs`, `bookings`, `messages`, `cost_estimates`.
 
-Run it only once. To start over, open **SQL Editor** and run
-`drop schema public cascade; create schema public; grant all on schema public to postgres, anon, authenticated, service_role;`
-then run the file again.
+Run it only once. To start over (this deletes all app data), run this in the SQL Editor, then run the file again:
+
+```sql
+drop table if exists messages, bookings, dogs, owners, vets, cost_estimates cascade;
+drop function if exists check_booking_dog, guard_booking_update, set_message_sender cascade;
+```
 
 ## 3. Set up Google sign-in
 
@@ -72,7 +75,7 @@ npm run dev
 
 Open http://localhost:8081 → **Continue with Google** → fill in **Set up your practice** (name, clinic, city). That creates your row in `vets`.
 
-`.env` is git-ignored. Send the two values to teammates privately. The publishable key is safe to ship to phones (the access rules protect the data), but keep it out of the repo anyway.
+`.env` is committed to the repo, so teammates can run the app right after cloning. That's fine for these two values: the publishable key ships to every phone anyway, and the access rules protect the data. Never put the secret / service_role key or an AI API key in `.env`; those go in `.env.local`, which git ignores.
 
 ## 5. Try it before the client app exists
 

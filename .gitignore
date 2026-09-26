@@ -2,10 +2,12 @@
 node_modules/
 dist/
 
-# Environment files (API keys, Supabase keys)
-.env
-.env.*
-!.env.example
+# Environment files
+# .env IS committed so teammates can run the app right after cloning.
+# It must only hold public values (Supabase URL + publishable key).
+# Put anything secret (service_role key, AI API key) in .env.local, which stays private.
+.env.local
+.env.*.local
 
 # OS / editor
 .DS_Store
