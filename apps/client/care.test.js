@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   COPY, assistance, canonicalSum, clinics, emergencyPlan, estimateCost, evaluate, isWisconsinZip,
-  mapServices, moneyAmounts, priceLabel, pricingRecords, recordsFor, selectPublished, summaryDocument, urgencyScale
+  mapServices, moneyAmounts, priceLabel, pricingRecords, recordsFor, sampleLabels, selectPublished, summaryDocument, urgencyScale
 } from "./care.js";
 
 const mild = { symptoms: ["Itchy skin"], notes: "", duration: "recent", energy: "normal", intake: "normal", detail: "mild" };
@@ -119,6 +119,20 @@ test("the result lists every urgency level and marks the one that applies", () =
   assert.match(summary, /YOUR RESULT — LEVEL 1: Keep a close eye/);
   assert.match(summary, /> Level 1: Keep a close eye/);
   assert.match(summary, / Level 4: Get emergency help/);
+});
+
+test("both health records inform the concern list and neither supplies a price", () => {
+  const vomiting = sampleLabels({ symptoms: ["Vomiting", "Diarrhea"] });
+  assert.equal(vomiting.areaPhrase, "digestive upset");
+  assert.equal(vomiting.conditions.includes("Gastroenteritis"), true);
+  assert.equal(vomiting.conditions.includes("Parvovirus"), true);
+  assert.equal(/xlsx|spreadsheet|excel|sample row/i.test(vomiting.reading), false);
+  const ears = sampleLabels({ symptoms: ["Ear discomfort"] });
+  assert.equal(ears.areaPhrase, "an ear infection");
+  const plan = evaluate({ age: 3, weight: 25, zipCode: "53703" }, { symptoms: ["Vomiting"], notes: "", duration: "recent", energy: "normal", intake: "normal", detail: "mild" });
+  assert.equal(plan.urgency, "fewDays");
+  assert.equal(/xlsx|spreadsheet|excel/i.test(summaryDocument(plan)), false);
+  assert.equal(plan.estimate.expectedPriceLabel, "$60–$75");
 });
 
 test("low confidence formatting is not a precise dollar and assistance links are real", () => {

@@ -2,6 +2,8 @@
 
 import { clinics as clinicList, pricingRecords as priceList } from "./pricing-data.js";
 import { ZIP_CENTROIDS } from "./zip-centroids.js";
+import { SYMPTOM_ROWS } from "./pet-symptoms.js";
+import { DISEASE_CASES } from "./disease-cases.js";
 
 export const clinics = clinicList;
 export const pricingRecords = priceList;
@@ -535,6 +537,120 @@ export function visitReading(pet, answers, urgency) {
   return { paragraph: sentences.join(" "), factors, watch };
 }
 
+const CHIP_TERMS = {
+  Vomiting: ["vomit", "throwing up", "threw up", "throw up"],
+  Diarrhea: ["diarrhea", "diarrhoea", "loose stool"],
+  Limping: ["limp", "lame", "lameness", "hip", "leg"],
+  "Not eating": ["not eating", "won't eat", "appetite", "refusing food", "refuses food"],
+  "Low energy": ["letharg", "tired", "hiding", "weak"],
+  "Itchy skin": ["itch", "scratch", "rash", "skin"],
+  "Ear discomfort": ["ear"],
+  Coughing: ["cough"],
+  "Eye irritation": ["eye"],
+  "Urinary changes": ["urin", "pee"]
+};
+
+const CHIP_TO_DISEASE = {
+  Vomiting: ["Vomiting"],
+  Diarrhea: ["Diarrhea"],
+  Limping: ["Lameness"],
+  "Not eating": ["Loss of Appetite"],
+  "Low energy": ["Lethargy"],
+  "Itchy skin": ["Skin Lesions"],
+  Coughing: ["Coughing"],
+  "Eye irritation": ["Eye Discharge"]
+};
+
+const AREA_PHRASE = {
+  "Digestive Issues": "digestive upset",
+  "Mobility Problems": "a mobility problem",
+  Parasites: "parasites",
+  "Ear Infections": "an ear infection",
+  "Skin Irritations": "skin irritation"
+};
+
+const DISEASE_NAME = {
+  "Canine Parvovirus": "Parvovirus",
+  Parvovirus: "Parvovirus",
+  "Canine Distemper": "Distemper",
+  Distemper: "Distemper",
+  "Canine Leptospirosis": "Leptospirosis",
+  Leptospirosis: "Leptospirosis",
+  "Kennel Cough": "Kennel cough",
+  "Bordetella Infection": "Kennel cough",
+  "Canine Cough": "Kennel cough",
+  Gastroenteritis: "Gastroenteritis",
+  "Canine Hepatitis": "Infectious hepatitis",
+  "Canine Infectious Hepatitis": "Infectious hepatitis",
+  "Lyme Disease": "Lyme disease",
+  Pancreatitis: "Pancreatitis",
+  "Tick-Borne Disease": "Tick-borne disease",
+  Arthritis: "Arthritis",
+  "Heartworm Disease": "Heartworm disease",
+  "Canine Heartworm Disease": "Heartworm disease",
+  "Chronic Bronchitis": "Chronic bronchitis",
+  "Allergic Rhinitis": "Allergic rhinitis",
+  "Canine Flu": "Canine influenza",
+  "Canine Influenza": "Canine influenza"
+};
+
+function chipHits(text, chips) {
+  const lower = text.toLowerCase();
+  return chips.filter((chip) => (CHIP_TERMS[chip] || []).some((term) => lower.includes(term)));
+}
+
+function rankedNames(counts, limit) {
+  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, limit).map(([name]) => name);
+}
+
+function leadingArea(chips) {
+  const covered = chips.filter((chip) => CHIP_TERMS[chip]);
+  if (!covered.length) return null;
+  const scored = SYMPTOM_ROWS.map((row) => ({ row, hits: chipHits(row.text, covered) })).filter((item) => item.hits.length);
+  if (!scored.length) return null;
+  const overlap = Math.max(...scored.map((item) => item.hits.length));
+  const counts = new Map();
+  for (const item of scored.filter((entry) => entry.hits.length === overlap)) {
+    const name = AREA_PHRASE[item.row.condition] || item.row.condition.toLowerCase();
+    counts.set(name, (counts.get(name) || 0) + 1);
+  }
+  return rankedNames(counts, 1)[0] || null;
+}
+
+function leadingConditions(chips) {
+  const wanted = new Set();
+  for (const chip of chips) (CHIP_TO_DISEASE[chip] || []).forEach((name) => wanted.add(name));
+  if (!wanted.size) return [];
+  const scored = DISEASE_CASES.map((row) => ({ row, score: row.symptoms.filter((name) => wanted.has(name)).length })).filter((item) => item.score);
+  if (!scored.length) return [];
+  const overlap = Math.max(...scored.map((item) => item.score));
+  const counts = new Map();
+  for (const item of scored.filter((entry) => entry.score === overlap)) {
+    const name = DISEASE_NAME[item.row.label] || item.row.label;
+    counts.set(name, (counts.get(name) || 0) + 1);
+  }
+  return rankedNames(counts, 3);
+}
+
+function symptomPhrase(chips) {
+  const text = joinAnd(chips.map((chip) => chip.toLowerCase()));
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+export function sampleLabels(answers) {
+  const chips = answers.symptoms || [];
+  const areaPhrase = leadingArea(chips);
+  const conditions = leadingConditions(chips);
+  let reading = "";
+  if (chips.length && (areaPhrase || conditions.length)) {
+    const reported = symptomPhrase(chips);
+    if (areaPhrase && conditions.length) reading = `${reported} can go along with ${areaPhrase}. A veterinarian may also want to consider:`;
+    else if (areaPhrase) reading = `${reported} can go along with ${areaPhrase}. A veterinarian can confirm whether that fits what you are seeing.`;
+    else reading = `With ${reported.toLowerCase()}, a veterinarian may want to consider:`;
+  }
+  return { areaPhrase, conditions, reading };
+}
+
 export function evaluate(pet, answers, now = new Date()) {
   const notes = (answers.notes || "").trim();
   if (answers.energy === "severe" || answers.detail === "redFlag" || answers.intake === "unable" || /\b(blood|poison|poisoned|collapse|collapsed|seizure|unconscious|not breathing|can't breathe|cannot breathe|blue gums)\b/i.test(notes)) {
@@ -567,6 +683,7 @@ function plan(pet, answers, urgency, reason, topics, now, extra = {}) {
     factors: extra.factors || [],
     watch: extra.watch || [],
     topics,
+    samples: sampleLabels(answers),
     estimate: estimateCost(mapServices(answers, urgency, { wellness: extra.wellness }), pet.zipCode),
     booking: null
   };
@@ -594,6 +711,14 @@ export function slotsFor(clinic, carePlan, now = new Date()) {
   return slots;
 }
 
+function sampleSummary(samples) {
+  if (!samples?.reading) return "";
+  const lines = ["What this may relate to", samples.reading];
+  for (const name of samples.conditions || []) lines.push(`- ${name}`);
+  lines.push("This is not a diagnosis, and it does not change the published prices.");
+  return lines.join("\n");
+}
+
 export function summaryDocument(carePlan) {
   const pet = carePlan.pet;
   const name = (pet.name || "").trim() || "Your dog";
@@ -617,6 +742,7 @@ export function summaryDocument(carePlan) {
     ...(carePlan.watch || []).length ? ["Watch for:", ...(carePlan.watch || []).map((item) => `- ${item}`)] : [],
     "",
     `Discussion topics (not diagnoses): ${carePlan.topics.join("; ") || "None"}`,
+    sampleSummary(carePlan.samples),
     carePlan.estimate.summaryText,
     "",
     carePlan.booking

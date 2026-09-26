@@ -248,6 +248,7 @@ function planView() {
         </details>
         <p class="note">${esc(estimate.additionalDisclaimer)}</p>
       </article>
+      ${sampleCard(plan.samples)}
       <article class="card">
         <h2>Questions for your vet</h2>
         <p class="note">Possible discussion topics, not diagnoses.</p>
@@ -467,6 +468,17 @@ function printSummary() {
   frame.document.close();
   frame.focus();
   frame.print();
+}
+
+function sampleCard(samples) {
+  if (!samples?.reading) return "";
+  const conditions = samples.conditions?.length ? `<ul>${samples.conditions.map((name) => `<li>${esc(name)}</li>`).join("")}</ul>` : "";
+  return `<article class="card" id="sampleLabels">
+    <h2>What this may relate to</h2>
+    <p>${esc(samples.reading)}</p>
+    ${conditions}
+    <p class="note">This is not a diagnosis, and it does not change the published prices.</p>
+  </article>`;
 }
 
 function clinicNote(plan, clinicId) {
