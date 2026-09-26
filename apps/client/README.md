@@ -1,22 +1,17 @@
-# Client app (pet owner side) — not started yet
+# Client app (pet owner side)
 
-Requirements: [../../docs/prd-client.md](../../docs/prd-client.md)
+PawPlan is the pet-owner website. A dog owner enters a profile, passes an emergency check, reports symptoms, and sees a demo urgency level next to the full 1–4 scale. Madison ZIP codes show published clinic prices with their sources. Other ZIP codes are not given Madison prices. Financial-assistance links are real Madison and Wisconsin programs. Appointment times are samples and are not sent to a clinic.
 
-Will be a mobile-first web app like `apps/vet` (Vite + React + React Router). Planned screens:
+## Run
 
+```bash
+python3 -m http.server 8765
 ```
-src/pages/
-  PetInfo.tsx            1. Pet info (species, age, weight)
-  EmergencyCheck.tsx     2. Emergency check
-  EmergencyVet.tsx          Level 4: connect to a 24 hr vet
-  Questionnaire.tsx      3. Symptom questionnaire
-  Triage.tsx             4. AI triage result (Level 1–3)
-  Estimate.tsx           5. Price estimate + financial aid (with triage summary)
-  booking/
-    ClinicList.tsx       6. Clinic list
-    TimeSlots.tsx           Pick a time slot
-    Review.tsx              Review + request booking
-    Pending.tsx             Waiting for the vet to accept
-    Confirmed.tsx           Confirmation
-  Chat.tsx               Chat with the vet (after the booking is accepted)
+
+Open http://127.0.0.1:8765.
+
+```bash
+node --test care.test.js
 ```
+
+This is a static site (HTML, CSS, and JavaScript modules). It does not use the Vite setup in `apps/vet`, and it does not connect to a backend. Chat with a vet and live booking are still planned.
