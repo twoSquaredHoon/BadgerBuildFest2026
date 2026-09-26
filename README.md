@@ -14,7 +14,7 @@ Both apps are **mobile-first web apps**. Anyone opens them from a link or QR cod
 | Part | Status |
 |---|---|
 | Vet app (`apps/vet`) | Built. All screens work. Starts empty until the backend is connected. |
-| Client app (`apps/client`) | Planned, not started. |
+| Client app (`apps/client`) | Built as PawPlan, a static website. Symptom check, urgency scale, and source-backed Madison prices work in the browser. Booking times are samples and are not sent to a clinic. |
 | Backend | Planned (Supabase). Not started. |
 
 ## Project structure
@@ -23,7 +23,7 @@ Both apps are **mobile-first web apps**. Anyone opens them from a link or QR cod
 BadgerBuildFest2026/
 ├── apps/
 │   ├── vet/        Vet side web app (Vite + React + TypeScript)
-│   └── client/     Pet owner web app (planned)
+│   └── client/     Pet owner website (PawPlan, static HTML/CSS/JS)
 ├── data/
 │   └── dog_disease_prediction.xlsx   Symptom → disease sample data for triage
 ├── docs/
@@ -46,6 +46,15 @@ npm run dev
 ```
 
 Open http://localhost:8081. To open it on a phone from anywhere, see [docs/running-and-hosting.md](docs/running-and-hosting.md).
+
+## Quick start (client app)
+
+```bash
+cd apps/client
+python3 -m http.server 8765
+```
+
+Open http://127.0.0.1:8765. Tests: `node --test care.test.js`.
 
 ## Tech stack
 
