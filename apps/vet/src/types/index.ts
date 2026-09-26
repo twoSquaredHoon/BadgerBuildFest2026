@@ -11,7 +11,7 @@ export type Owner = {
 };
 
 export type BookingRequest = {
-  id: string;
+  id: string; // booking id in the database
   dog: Dog;
   owner: Owner;
   date: string; // YYYY-MM-DD
@@ -27,14 +27,23 @@ export type Visit = {
 };
 
 export type Patient = {
-  id: string;
+  id: string; // dog id in the database
   dog: Dog;
   owner: Owner;
   visits: Visit[];
 };
 
 export type Message = {
+  id: string;
   from: 'vet' | 'owner';
   text: string;
   sentAt: string; // ISO timestamp
+};
+
+/** The signed-in vet's practice, stored in the `vets` table. */
+export type VetProfile = {
+  id: string;
+  name: string;
+  clinic: string;
+  location: string;
 };

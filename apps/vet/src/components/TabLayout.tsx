@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useLocation } from 'react-router';
 
 import { CalendarIcon, ChatIcon, ClipboardIcon, InboxIcon } from '@/components/icons';
+import { useAuth } from '@/store/Auth';
 import { useVetStore } from '@/store/VetStore';
 
 const TITLES: Record<string, string> = {
@@ -13,6 +14,7 @@ const TITLES: Record<string, string> = {
 export default function TabLayout() {
   const { pathname } = useLocation();
   const { requests } = useVetStore();
+  const { vet, signOut } = useAuth();
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
   return (
@@ -22,6 +24,9 @@ export default function TabLayout() {
           <div className="small muted">{today}</div>
           <h1>{TITLES[pathname] ?? 'Vet Side'}</h1>
         </div>
+        <button type="button" className="signout" onClick={signOut} title={vet ? `Signed in as ${vet.name}` : undefined}>
+          Sign out
+        </button>
       </header>
 
       <main className="tab-main">

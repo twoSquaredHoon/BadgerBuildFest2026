@@ -152,3 +152,27 @@ p { margin: 0; }
 /* toast */
 .toast-wrap { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 20px); width: calc(100% - 32px); max-width: 448px; display: flex; justify-content: center; pointer-events: none; z-index: 20; }
 .toast { background: #1e2a24; color: #f4f1ea; border-radius: 14px; padding: 13px 18px; font-size: 14px; font-weight: 500; text-align: center; }
+
+/* sign-in and practice setup */
+.auth { min-height: 100dvh; display: flex; flex-direction: column; justify-content: center; gap: 16px; padding: calc(32px + env(safe-area-inset-top, 0px)) 24px calc(32px + var(--safe-bottom)); }
+.auth-brand { font-family: Georgia, 'Times New Roman', serif; font-size: 34px; font-weight: 700; letter-spacing: -0.01em; }
+.auth-lead { font-size: 16px; color: var(--muted); line-height: 1.45; margin-bottom: 8px; }
+.auth-google { width: 100%; }
+.auth-error { color: var(--badge); font-size: 14px; }
+.auth code { font-size: 13px; background: var(--surface-muted); padding: 1px 5px; border-radius: 6px; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field input { height: 50px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); padding: 0 16px; font-size: 16px; color: var(--ink); font-family: inherit; }
+.btn:disabled { opacity: 0.6; }
+.signout { border: 0; background: transparent; color: var(--accent); font-size: 14px; font-weight: 600; min-height: 44px; padding: 0 4px; }
+
+/* start screen */
+.welcome { gap: 14px; }
+.welcome .section-label { margin-top: 8px; }
+.role-card { width: 100%; display: flex; align-items: center; gap: 14px; padding: 18px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; text-align: left; text-decoration: none; color: var(--ink); }
+.role-card:active { opacity: 0.8; }
+.role-card .grow { display: flex; flex-direction: column; gap: 2px; }
+.role-icon { width: 52px; height: 52px; flex-shrink: 0; border-radius: 50%; background: var(--accent-soft); color: var(--accent-dark); display: flex; align-items: center; justify-content: center; }
+.role-title { font-size: 18px; font-weight: 700; }
+.role-body { font-size: 14px; line-height: 1.4; color: var(--muted); }
+.welcome-foot { text-align: center; font-size: 13px; color: var(--faint); margin-top: 12px; }
+.auth-back { align-self: flex-start; display: flex; align-items: center; gap: 2px; min-height: 44px; padding: 0; border: 0; background: transparent; color: var(--accent); font-size: 16px; font-weight: 600; }

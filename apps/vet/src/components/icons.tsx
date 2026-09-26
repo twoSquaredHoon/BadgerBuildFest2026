@@ -52,3 +52,19 @@ export const SendIcon = (p: IconProps) => (
     <path d="M12 19V5M5 12l7-7 7 7" />
   </Svg>
 );
+export const PawIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="5.5" cy="10" r="2" />
+    <circle cx="9" cy="5.5" r="2" />
+    <circle cx="15" cy="5.5" r="2" />
+    <circle cx="18.5" cy="10" r="2" />
+    <path d="M12 12c-3 0-5.5 3.2-5.5 5.5 0 1.9 1.4 3 3.2 3 1 0 1.5-.5 2.3-.5s1.3.5 2.3.5c1.8 0 3.2-1.1 3.2-3 0-2.3-2.5-5.5-5.5-5.5z" />
+  </Svg>
+);
+export const StethoscopeIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M5 3H4v5a5 5 0 0 0 10 0V3h-1" />
+    <path d="M9 13v2a5 5 0 0 0 10 0v-2" />
+    <circle cx="19" cy="11" r="2" />
+  </Svg>
+);

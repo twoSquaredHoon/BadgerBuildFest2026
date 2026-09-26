@@ -12,8 +12,9 @@
           └──────────────┐          ┌────────────┘
                          ▼          ▼
                  ┌──────────────────────────┐
-                 │   Supabase (planned)     │
+                 │   Supabase               │
                  │  Postgres + Realtime     │
+ │  Google sign-in          │
                  │  Edge Function: triage   │
                  └──────────────────────────┘
 ```
@@ -33,6 +34,7 @@ React 19 + TypeScript, built with Vite, routing with React Router. No UI library
 ```
 apps/vet/
 ├── index.html              HTML shell (phone viewport, title, icon)
+├── .env.example          Supabase URL + key (copy to .env)
 ├── vite.config.ts          Dev/preview server on port 8081; allows *.trycloudflare.com
 ├── public/favicon.svg
 └── src/
@@ -40,8 +42,11 @@ apps/vet/
     ├── App.tsx             Routes
     ├── styles.css          All styles
     ├── types/index.ts      Data types (Dog, Owner, BookingRequest, Appointment, Patient, Message)
-    ├── store/VetStore.tsx  App state and actions (React context)
+    ├── store/
+    │   ├── Auth.tsx        Google sign-in, session, vet profile
+    │   └── VetStore.tsx    Loads the vet's data from Supabase, live updates, actions
     ├── lib/
+    │   ├── supabase.ts     Supabase client
     │   ├── dates.ts        Date/time helpers
     │   └── calendar.ts     "Add to Apple Calendar" (downloads an .ics invite)
     ├── components/
@@ -50,6 +55,8 @@ apps/vet/
     │   ├── ui.tsx          Shared pieces (Avatar, EmptyState, AppointmentRow, Segmented, DetailHeader…)
     │   └── icons.tsx       Inline SVG icons
     └── pages/
+        ├── SignIn.tsx             Continue with Google
+        ├── PracticeSetup.tsx      First sign-in: name, clinic, city
         ├── Requests.tsx           Booking requests (accept / decline)
         ├── Appointments.tsx       Calendar: month, week, day
         ├── Patients.tsx           Past patients
@@ -73,17 +80,19 @@ apps/vet/
 
 ### State
 
-`src/store/VetStore.tsx` holds everything in React state and exposes actions:
+Before any screen, `App.tsx` checks sign-in (`src/store/Auth.tsx`): signed out → **SignIn**, first sign-in → **PracticeSetup** (creates the `vets` row), otherwise the app.
+
+`src/store/VetStore.tsx` loads the signed-in vet's bookings and messages, keeps them live with Supabase Realtime (and reloads when the phone comes back to the app), and exposes actions:
 
 | Action | What it does |
 |---|---|
-| `acceptRequest(id)` | Moves a request to appointments and opens a chat thread |
-| `declineRequest(id)` | Removes the request (owner is told to pick another time or clinic) |
-| `completeAppointment(id)` | Removes the appointment and adds a visit to Past patients |
+| `acceptRequest(id)` | Sets the booking to `accepted`: it moves to Appointments and Chat opens |
+| `declineRequest(id)` | Sets the booking to `declined` |
+| `completeAppointment(id)` | Sets the booking to `completed`: it shows under Past patients |
 | `addToCalendar(id)` | Downloads an `.ics` invite for Apple Calendar |
-| `sendMessage(id, text)` | Adds a vet message to the conversation |
+| `sendMessage(id, text)` | Inserts a message (the database fills in `sender`) |
 
-State starts **empty**. When the backend is added, the store loads from Supabase and each action writes to it; the screens don't need to change.
+Screens update right away and the change is saved in the background; if the save fails, it is undone and a message explains why.
 
 ### Data model
 
@@ -96,7 +105,8 @@ BookingRequest { id, dog, owner, date (YYYY-MM-DD), start (hour, e.g. 9.5), dura
 Appointment    = BookingRequest
 Patient        { id, dog, owner, visits: Visit[] }
 Visit          { date, type }
-Message        { from: 'vet' | 'owner', text, sentAt (ISO timestamp) }
+Message        { id, from: 'vet' | 'owner', text, sentAt (ISO timestamp) }
+VetProfile     { id, name, clinic, location }
 ```
 
 ## Client app (`apps/client`) — planned
@@ -105,31 +115,45 @@ Same stack as the vet app. Flow (see [prd-client.md](prd-client.md)):
 
 1. Pet info → 2. Emergency check (Level 4 → 24 hr vet) → 3. Questionnaire → 4. AI triage (Level 1–3) → 5. Price estimate + financial aid → 6. Booking → 7. Chat (after the vet accepts)
 
-## Backend — planned (Supabase)
+## Backend (Supabase)
+
+Set up: [backend-setup.md](backend-setup.md). Schema and rules: [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql).
+
+### Sign-in
+
+Vets and owners both sign in with Google (Supabase Auth). Their row in `vets` or `owners` uses their sign-in id (`auth.uid()`).
 
 ### Tables
 
 | Table | Columns |
 |---|---|
-| `vets` | id, name, clinic, location |
-| `owners` | id, name, phone |
+| `vets` | id (= sign-in id), name, clinic, location |
+| `owners` | id (= sign-in id), name, phone |
 | `dogs` | id, owner_id, name, breed, age, weight |
-| `bookings` | id, dog_id, vet_id, date, start, duration, status, triage_summary |
-| `messages` | id, booking_id, sender (`vet` / `owner`), text, created_at |
+| `bookings` | id, owner_id, dog_id, vet_id, date, start, duration, status, visit_type, triage_summary (JSON) |
+| `messages` | id, booking_id, sender (`vet` / `owner`, set by the database), text, created_at |
+| `cost_estimates` | condition, urgency (1–4), low, high, breakdown |
 
-`bookings.status` drives the vet screens:
+Past patients have no table of their own: they are the dogs with `completed` bookings, one visit per booking.
+
+`bookings.status` drives the screens:
 
 | Status | Shown on |
 |---|---|
-| `pending` | Requests |
-| `accepted` | Appointments, Chat |
-| `declined` | (owner is notified) |
-| `completed` | Past patients |
+| `pending` | Vet: Requests |
+| `accepted` | Vet: Appointments, Chat |
+| `declined` | Owner is notified |
+| `completed` | Vet: Past patients |
+| `cancelled` | Owner cancelled |
+
+### Access rules
+
+Row level security: each vet sees only their bookings (and those dogs, owners and messages); each owner sees only their own. Triggers stop invalid changes (e.g. a vet can't change the time, chat only while `accepted`). Details in [backend-setup.md](backend-setup.md#how-the-pieces-fit).
 
 ### Realtime
 
-Subscribe to `bookings` and `messages` so new requests and chat messages appear without refreshing.
+`bookings` and `messages` are published, so new requests and chat messages appear without refreshing.
 
-### Triage function
+### Triage function (planned)
 
 A Supabase Edge Function (`supabase/functions/triage/`) takes the questionnaire answers and returns an urgency level and possible causes. Data source: [data.md](data.md).

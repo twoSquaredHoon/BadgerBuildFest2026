@@ -13,9 +13,9 @@ Both apps are **mobile-first web apps**. Anyone opens them from a link or QR cod
 
 | Part | Status |
 |---|---|
-| Vet app (`apps/vet`) | Built. All screens work. Starts empty until the backend is connected. |
-| Client app (`apps/client`) | Planned, not started. |
-| Backend | Planned (Supabase). Not started. |
+| Vet app (`apps/vet`) | Built. Google sign-in, live data from Supabase. |
+| Client app (`apps/client`) | Built as PawPlan, a static website. Symptom check, urgency scale, and source-backed Madison prices work in the browser. Booking times are samples and are not sent to a clinic. |
+| Backend | Supabase schema, access rules and realtime written ([setup guide](docs/backend-setup.md)). Triage function not started. |
 
 ## Project structure
 
@@ -23,11 +23,14 @@ Both apps are **mobile-first web apps**. Anyone opens them from a link or QR cod
 BadgerBuildFest2026/
 ├── apps/
 │   ├── vet/        Vet side web app (Vite + React + TypeScript)
-│   └── client/     Pet owner web app (planned)
+│   └── client/     Pet owner website (PawPlan, static HTML/CSS/JS)
+├── supabase/
+│   └── migrations/0001_init.sql   Tables, access rules, realtime
 ├── data/
 │   └── dog_disease_prediction.xlsx   Symptom → disease sample data for triage
 ├── docs/
 │   ├── architecture.md          How the apps are built and how they connect
+│   ├── backend-setup.md         Create the Supabase project and Google sign-in
 │   ├── running-and-hosting.md   Run locally and share with a QR code
 │   ├── data.md                  About the triage dataset
 │   ├── prd-client.md            Product requirements: pet owner app
@@ -35,28 +38,62 @@ BadgerBuildFest2026/
 └── README.md
 ```
 
-## Quick start (vet app)
+## Vet app (`apps/vet`)
+
+The vet side: a mobile-first web app for solo vets.
+
+- **Requests:** accept or decline booking requests from pet owners
+- **Appointments:** month, week and day calendar views; add a visit to Apple Calendar
+- **Patients:** dogs that have visited, with their past visits
+- **Chat:** talk with owners about their dog's symptoms (accepted appointments only)
+
+### Run
 
 Requires **Node.js 20.19 or newer**.
+
+First set up the backend once: [docs/backend-setup.md](docs/backend-setup.md) (Supabase project, Google sign-in), then copy `apps/vet/.env.example` to `apps/vet/.env` and fill in the two values.
 
 ```bash
 cd apps/vet
 npm install
-npm run dev
+npm run dev        # http://localhost:8081, updates live as you edit
 ```
 
-Open http://localhost:8081. To open it on a phone from anywhere, see [docs/running-and-hosting.md](docs/running-and-hosting.md).
+For a faster demo build: `npm run build` then `npm run serve`. To open it on a phone with a QR code, see [docs/running-and-hosting.md](docs/running-and-hosting.md).
+
+### Data
+
+Vets sign in with Google. Booking requests, appointments, patients and messages come from Supabase and update live.
+
+## Client app (`apps/client`) — PawPlan
+
+The pet-owner website. A dog owner enters a profile, passes an emergency check, reports symptoms, and sees a demo urgency level next to the full 1–4 scale. Madison ZIP codes show published clinic prices with their sources. Other ZIP codes are not given Madison prices. Financial-assistance links are real Madison and Wisconsin programs. Appointment times are samples and are not sent to a clinic.
+
+### Run
+
+```bash
+cd apps/client
+python3 -m http.server 8765    # http://127.0.0.1:8765
+node --test care.test.js       # tests
+```
+
+This is a static site (HTML, CSS, and JavaScript modules). It does not use the Vite setup in `apps/vet`, and it does not connect to a backend. Chat with a vet and live booking are still planned.
+
+## Code
+
+See [docs/architecture.md](docs/architecture.md) for the folder structure, routes, state and data model.
 
 ## Tech stack
 
 - **Frontend:** React 19, TypeScript, Vite, React Router
 - **Styling:** plain CSS (`apps/vet/src/styles.css`), phone-width layout
 - **Hosting (demo):** served from a laptop and shared through a free Cloudflare quick tunnel
-- **Backend (planned):** Supabase (Postgres database, realtime updates, and an Edge Function for AI triage)
+- **Backend:** Supabase (Postgres database, Google sign-in, realtime updates); AI triage Edge Function planned
 
 ## Documentation
 
 - [Architecture](docs/architecture.md)
+- [Backend setup](docs/backend-setup.md)
 - [Running and hosting](docs/running-and-hosting.md)
 - [Triage dataset](docs/data.md)
 - [PRD: pet owner app](docs/prd-client.md)
