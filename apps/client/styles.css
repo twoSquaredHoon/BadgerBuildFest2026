@@ -131,3 +131,28 @@ summary { cursor: pointer; font-weight: 700; color: var(--accent); }
 .choices:has([data-action="sort"]) { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: #e6e1d6; border-radius: 12px; padding: 3px; }
 .choices:has([data-action="sort"]) .choice { min-height: 38px; height: 38px; border: 0; border-radius: 9px; background: transparent; justify-content: center; font-size: 15px; color: #4a524c; }
 .choices:has([data-action="sort"]) .choice[aria-pressed="true"] { background: var(--surface); color: var(--ink); }
+
+/* My plan: three compact cards that fit on one screen */
+.card.compact { padding: 14px 16px; gap: 8px; }
+.card.compact .eyebrow { padding: 0; }
+.result { display: flex; align-items: center; gap: 12px; }
+.level-dot { width: 44px; height: 44px; flex-shrink: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 19px; font-weight: 700; color: #fff; background: var(--badge); }
+.level-dot.monitor { background: var(--accent); }
+.review { background: var(--surface-muted); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.card.compact .price { font-size: 28px; line-height: 1.1; }
+.aid { gap: 0; }
+.aid .eyebrow { margin-bottom: 4px; }
+.aid-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 42px; border-top: 1px solid var(--line-soft); color: var(--ink); font-weight: 600; font-size: 15px; }
+.aid-row svg { color: var(--faint); flex-shrink: 0; }
+.aid-row.more { color: var(--accent); }
+.card.compact details { border: 0; padding: 0; background: transparent; }
+.card.compact summary { font-size: 14px; }
+.aid .row { align-items: center; margin-bottom: 4px; }
+.aid .row .eyebrow { margin-bottom: 0; }
+.cost-row { display: flex; align-items: center; gap: 14px; }
+.cost-row .price { flex-shrink: 0; }
+
+/* empty state (same as vet side) */
+.empty { background: var(--surface); border: 1px dashed var(--border); border-radius: 18px; padding: 40px 24px; text-align: center; display: flex; flex-direction: column; gap: 8px; }
+.empty-title { font-size: 20px; font-weight: 700; }
+.empty p { color: var(--muted); font-size: 15px; }

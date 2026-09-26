@@ -14,7 +14,7 @@
                  ┌──────────────────────────┐
                  │   Supabase               │
                  │  Postgres + Realtime     │
- │  Google sign-in          │
+ │  Email sign-in (Auth)    │
                  │  Edge Function: triage   │
                  └──────────────────────────┘
 ```
@@ -43,7 +43,7 @@ apps/vet/
     ├── styles.css          All styles
     ├── types/index.ts      Data types (Dog, Owner, BookingRequest, Appointment, Patient, Message)
     ├── store/
-    │   ├── Auth.tsx        Google sign-in, session, vet profile
+    │   ├── Auth.tsx        Email sign-in / sign-up, session, vet profile
     │   └── VetStore.tsx    Loads the vet's data from Supabase, live updates, actions
     ├── lib/
     │   ├── supabase.ts     Supabase client
@@ -55,7 +55,7 @@ apps/vet/
     │   ├── ui.tsx          Shared pieces (Avatar, EmptyState, AppointmentRow, Segmented, DetailHeader…)
     │   └── icons.tsx       Inline SVG icons
     └── pages/
-        ├── SignIn.tsx             Continue with Google
+        ├── SignIn.tsx             Email + password (sign in or create account)
         ├── PracticeSetup.tsx      First sign-in: name, clinic, city
         ├── Requests.tsx           Booking requests (accept / decline)
         ├── Appointments.tsx       Calendar: month, week, day
@@ -121,7 +121,7 @@ Set up: [backend-setup.md](backend-setup.md). Schema and rules: [`supabase/migra
 
 ### Sign-in
 
-Vets and owners both sign in with Google (Supabase Auth). Their row in `vets` or `owners` uses their sign-in id (`auth.uid()`).
+Vets and owners both sign in with email and password (Supabase Auth; email confirmation turned off). Their row in `vets` or `owners` uses their sign-in id (`auth.uid()`).
 
 ### Tables
 

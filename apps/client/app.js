@@ -1,6 +1,6 @@
 import {
-  SYMPTOMS, assistance, clinics, detailQuestion, emergencyPlan, evaluate, petIsValid,
-  slotsFor, summaryDocument, urgencyInfo, urgencyScale
+  SYMPTOMS, assistance, detailQuestion, emergencyPlan, evaluate, petIsValid,
+  summaryDocument, urgencyInfo
 } from "./care.js";
 
 const KEY = "pawplan.web.v1";
@@ -16,6 +16,7 @@ const FLOW_TITLES = { check: "Symptom check", booking: "Book a visit" };
 const svg = (size, paths) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
 const ICONS = {
   back: svg(22, '<path d="M15 18l-6-6 6-6"/>'),
+  chevron: svg(18, '<path d="M9 18l6-6-6-6"/>'),
   home: svg(24, '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/>'),
   plan: svg(24, '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h4"/>'),
   resources: svg(24, '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/>'),
@@ -88,7 +89,6 @@ function onInput(event) {
   if (field.id === "petWeight") state.pet.weight = field.value;
   if (field.id === "petZip") state.pet.zipCode = field.value;
   if (field.id === "notes") state.answers.notes = field.value.slice(0, 1500);
-  if (field.id === "regularVet") state.regularVet = field.value;
   const button = app.querySelector("#continuePet");
   if (button) button.disabled = !petReady();
   const notesButton = app.querySelector("#continueSymptoms");
@@ -108,8 +108,8 @@ function onClick(event) {
       if (index > 0) { state.step = order[index - 1]; render(); window.scrollTo(0, 0); } else show("home");
       return;
     }
-    if (state.view === "booking") action = state.bookingStep === "done" ? "done-booking" : "back-booking";
-    else { show("home"); return; }
+    show(state.view === "booking" ? "plan" : "home");
+    return;
   }
   if (action === "start") { state.step = "pet"; show("check"); return; }
   if (action === "emergency-now") return finishEmergency("Emergency help requested before completing the check.");
@@ -145,21 +145,7 @@ function onClick(event) {
     show("plan");
     return;
   }
-  if (action === "book") { state.bookingStep = "clinics"; state.chosenClinic = null; state.chosenSlot = null; show("booking"); return; }
-  if (action === "sort") { state.sort = button.dataset.sort; render(); return; }
-  if (action === "pick-clinic") { state.chosenClinic = button.dataset.clinic; state.bookingStep = "time"; render(); return; }
-  if (action === "pick-slot") { state.chosenSlot = button.dataset.slot; render(); return; }
-  if (action === "review-booking") { state.bookingStep = "review"; render(); return; }
-  if (action === "confirm-booking") return confirmBooking();
-  if (action === "back-booking") {
-    if (state.bookingStep === "review") state.bookingStep = "time";
-    else if (state.bookingStep === "time") { state.bookingStep = "clinics"; state.chosenSlot = null; }
-    else show("plan");
-    render();
-    return;
-  }
-  if (action === "done-booking") show("plan");
-  if (action === "cancel-booking") { state.plan.booking = null; save(); show("plan"); return; }
+  if (action === "book") { show("booking"); return; }
   if (action === "print") { printSummary(); return; }
   if (action === "clear") { localStorage.removeItem(KEY); state.plan = null; state.pet = blankPet(); show("home"); }
 }
@@ -168,7 +154,7 @@ function home() {
   const saved = state.plan ? `<a class="card" href="#plan" data-go="plan"><strong>${esc(displayName(state.plan.pet))}’s saved plan</strong></a>` : "";
   return `
     <section class="stack">
-      <p class="muted">Check your dog’s symptoms and see published Madison vet prices.</p>
+      <p class="muted">Check your dog’s symptoms and get a care plan.</p>
       <div class="hero-actions">
         <button class="primary" data-action="start" id="startCheck">Check my dog’s symptoms</button>
         <button class="ghost" data-go="emergency">Emergency help</button>
@@ -194,7 +180,7 @@ function petStep() {
       ${field("Weight in pounds", "petWeight", state.pet.weight, "e.g. 25", "decimal")}
       ${field("ZIP code", "petZip", state.pet.zipCode, "e.g. 53703", "text")}
     </div>
-    <p class="note">Age 0–30 years, weight up to 350 lb. Prices are shown for Madison ZIP codes only.</p>
+    <p class="note">Age 0–30 years, weight up to 350 lb.</p>
     <button class="primary" id="continuePet" data-action="continue-pet" ${petReady() ? "" : "disabled"}>Continue</button>
     <button class="ghost" data-action="emergency-now">Emergency help now</button>`;
 }
@@ -248,106 +234,50 @@ function planView() {
   if (state.plan.urgency === "emergency") return emergencyView();
   const plan = state.plan;
   const info = urgencyInfo(plan.urgency);
-  const estimate = plan.estimate;
-  const booking = plan.booking ? `<article class="card"><p class="badge">Appointment saved</p><h2>${esc(plan.booking.clinicName)}</h2><p>${esc(formatWhen(plan.booking.when))}</p><p class="muted">${esc(plan.booking.address)}</p><p class="note">Sample booking — not sent to the clinic.</p><button class="ghost" data-action="book">Reschedule</button><button class="ghost" data-action="cancel-booking">Cancel</button></article>` : "";
-  const possible = estimate.possibleLines.length ? `<hr><h2>Possible extra services</h2>${estimate.possibleLines.map((line) => `<div class="row"><strong>${esc(line.name)}</strong><span>${esc(line.priceLabel)}</span></div>`).join("")}` : "";
-  const price = estimate.expectedPriceLabel ? `<p class="price">${esc(estimate.expectedPriceLabel)}</p><p class="note">${esc(estimate.expectedCaption || "")}</p>` : `<p><strong>${esc(estimate.regionBanner)}</strong></p>`;
   return `
     <section class="stack">
-      <article class="card">
-        <h2>${esc(info.title)}</h2>
-        <p>${esc(info.timing)}</p>
-        ${urgencyScaleMarkup(plan.urgency)}
-        <hr>
-        <p><strong>${esc(displayName(plan.pet))}</strong><br><span class="muted">${esc(plan.pet.age)} years · ${esc(plan.pet.weight)} lb · ZIP ${esc(plan.pet.zipCode || "not provided")}</span></p>
-        <p>${esc(plan.answers.symptoms.join(", "))}</p>
-        ${plan.answers.notes ? `<p class="muted">${esc(plan.answers.notes)}</p>` : ""}
-      </article>
-      ${booking}
-      <article class="card sage" id="costCard">
-        <p class="eyebrow">Cost</p>
-        ${price}
-        ${possible}
-        <hr>
-        <h2>Clinics</h2>
-        ${estimate.clinicNotes.map((note) => `<div><strong>${esc(note.clinicName)}</strong><p class="note">${esc(note.detail)}</p></div>`).join("")}
-        <details id="howWeEstimated">
-          <summary>Sources</summary>
-          <div class="provenance">
-            ${estimate.provenance.map((line) => `<div><strong>${esc(line.service)}</strong><p>${esc(line.price)}</p>${line.sourceName ? `<p><a href="${esc(line.sourceURL)}">${esc(line.sourceName)}</a></p><p class="note">${esc(line.dateText)}</p>` : ""}</div>`).join("")}
+      <article class="card compact">
+        <div class="result">
+          <span class="level-dot ${plan.urgency}">${info.level}</span>
+          <div>
+            <h2>${esc(info.title)}</h2>
+            <p class="note">${esc(info.timing)}</p>
           </div>
-        </details>
+        </div>
+        <div class="review">
+          <p><strong>${esc(displayName(plan.pet))}</strong> <span class="muted">· ${esc(plan.pet.age)} yrs · ${esc(plan.pet.weight)} lb</span></p>
+          <p>${esc(plan.answers.symptoms.join(", ") || plan.answers.notes)}</p>
+        </div>
       </article>
-      <article class="card">
-        <h2>Ask your vet about</h2>
-        <ul>${plan.topics.map((topic) => `<li>${esc(topic)}</li>`).join("")}</ul>
+      <article class="card compact" id="costCard">
+        <p class="eyebrow">Estimated cost</p>
+        <p class="muted">Clinic prices will show here once vets join.</p>
       </article>
-      ${plan.urgency === "monitor" ? `<article class="card"><p class="muted">Write down changes and call a vet if they continue.</p><button class="ghost" data-action="start">Symptoms got worse — check again</button></article>` : ""}
-      <a class="card" href="#resources" data-go="resources"><strong>Help paying for care</strong></a>
-      ${plan.booking ? "" : `<button class="primary" id="bookVisit" data-action="book">Book a visit</button>`}
+      <article class="card compact aid">
+        <div class="row"><p class="eyebrow">Help paying</p><a class="small" href="#resources" data-go="resources">All options</a></div>
+        ${assistance.slice(0, 3).map((item) => `<a class="aid-row" href="${esc(item.url)}"><span>${esc(item.name)}</span>${ICONS.chevron}</a>`).join("")}
+      </article>
+      <button class="primary" id="bookVisit" data-action="book">Book a visit</button>
+      ${plan.urgency === "monitor" ? `<button class="ghost" data-action="start">Symptoms got worse — check again</button>` : ""}
       <button class="ghost" data-action="print">Print or save summary</button>
     </section>`;
 }
 
 
+
 function booking() {
   if (!state.plan || state.plan.urgency === "emergency") return emergencyView();
-  if (state.bookingStep === "time") return timeStep();
-  if (state.bookingStep === "review") return reviewStep();
-  if (state.bookingStep === "done") return doneStep();
-  const available = clinics.map((clinic) => ({ clinic, slots: slotsFor(clinic, state.plan) })).filter((item) => item.slots.length);
-  available.sort((a, b) => state.sort === "name" ? a.clinic.name.localeCompare(b.clinic.name) : a.slots[0].localeCompare(b.slots[0]));
   return `
     <section class="stack">
-      <p class="note">Sample times only — no visit is reserved.</p>
-      <div class="choices"><button class="choice" data-action="sort" data-sort="soonest" aria-pressed="${state.sort !== "name"}">Soonest</button><button class="choice" data-action="sort" data-sort="name" aria-pressed="${state.sort === "name"}">Name</button></div>
-      ${available.map(({ clinic, slots }) => `<button class="card" data-action="pick-clinic" data-clinic="${clinic.id}" id="clinic_${clinic.id}"><strong>${esc(clinic.name)}</strong><p class="muted">${esc(clinic.neighborhood)} · ${esc(clinic.phone)}</p><p>${esc(clinicNote(state.plan, clinic.id))}</p><p>Next: ${esc(formatWhen(slots[0]))}</p></button>`).join("")}
-      <label class="card field"><span>Already have a vet?</span><input id="regularVet" value="${esc(state.regularVet)}" placeholder="Your vet’s name"><p class="note">Call them directly and bring your summary.</p></label>
+      <div class="empty"><div class="empty-title">No clinics yet</div><p>Clinics will show here once vets join.</p></div>
     </section>`;
 }
 
 
-function timeStep() {
-  const clinic = clinics.find((item) => item.id === state.chosenClinic);
-  const slots = slotsFor(clinic, state.plan);
-  return `
-    <section class="stack">
-      <h1>${esc(clinic.name)}</h1>
-      ${slots.map((slot) => `<button class="slot" data-action="pick-slot" data-slot="${esc(slot)}" aria-pressed="${state.chosenSlot === slot}">${esc(formatWhen(slot))}</button>`).join("")}
-      <button class="primary" id="reviewBooking" data-action="review-booking" ${state.chosenSlot ? "" : "disabled"}>Review</button>
-    </section>`;
-}
 
 
-function reviewStep() {
-  const clinic = clinics.find((item) => item.id === state.chosenClinic);
-  return `
-    <section class="stack">
-      <article class="card">
-        <h2>${esc(clinic.name)}</h2>
-        <p>${esc(formatWhen(state.chosenSlot))}</p>
-        <p>${esc(displayName(state.plan.pet))} · ${esc(state.plan.answers.symptoms.join(", "))}</p>
-        <p>${esc(clinicNote(state.plan, clinic.id))}</p>
-      </article>
-      <button class="primary" id="confirmBooking" data-action="confirm-booking">Save appointment</button>
-    </section>`;
-}
 
 
-function doneStep() {
-  const booking = state.plan.booking;
-  return `
-    <section class="stack">
-      <h1 id="demoSaved">Appointment saved</h1>
-      <article class="card">
-        <h2>${esc(booking.clinicName)}</h2>
-        <p>${esc(formatWhen(booking.when))}</p>
-        <p class="muted">${esc(booking.address)}</p>
-      </article>
-      <p class="note">Sample booking — call the clinic to book a real visit.</p>
-      <button class="primary" id="finishBooking" data-action="done-booking">Back to my plan</button>
-    </section>`;
-}
 
 
 function emergencyView() {
@@ -356,36 +286,12 @@ function emergencyView() {
     <section class="stack">
       <h1>Call an emergency vet now</h1>
       ${reason}
-      <article class="card">
-        <div class="row"><h2>VEG Madison</h2><span class="badge">24/7</span></div>
-        <p class="muted">7456 Mineral Point Road<br>Madison, WI 53717</p>
-        <a class="primary emergency" href="tel:+16087163255">Call (608) 716-3255</a>
-        <a href="https://maps.google.com/?daddr=7456+Mineral+Point+Road+Madison+WI+53717">Get directions</a>
-      </article>
-      <article class="card">
-        <div class="row"><h2>UW Veterinary Care</h2><span class="badge">24/7</span></div>
-        <a href="tel:+16082637600">Call (608) 263-7600</a>
-      </article>
+      <a class="primary emergency" href="https://www.google.com/maps/search/emergency+vet+near+me">Find emergency vets near me</a>
       ${state.plan?.urgency === "emergency" ? `<button class="ghost" data-action="print">Print or save summary</button><button class="ghost" data-action="start">Start a new check</button>` : ""}
     </section>`;
 }
 
 
-function urgencyScaleMarkup(current) {
-  return `
-    <div class="scale" aria-label="Urgency levels">
-      ${urgencyScale().map((item) => {
-        const yours = item.key === current;
-        return `<div class="scale-row ${item.key}${yours ? " current" : ""}">
-          <span class="scale-level">${item.level}</span>
-          <div>
-            <strong>${esc(item.title)}</strong>
-            ${yours ? `<span class="yours">Your result</span>` : ""}
-          </div>
-        </div>`;
-      }).join("")}
-    </div>`;
-}
 
 
 function resources() {
@@ -413,20 +319,6 @@ function finishEmergency(reason) {
   show("emergency");
 }
 
-function confirmBooking() {
-  const clinic = clinics.find((item) => item.id === state.chosenClinic);
-  const slots = slotsFor(clinic, state.plan);
-  if (!slots.includes(state.chosenSlot)) {
-    state.bookingStep = "time";
-    state.chosenSlot = null;
-    render();
-    return;
-  }
-  state.plan.booking = { clinicId: clinic.id, clinicName: clinic.name, address: clinic.address, when: state.chosenSlot };
-  save();
-  state.bookingStep = "done";
-  render();
-}
 
 function printSummary() {
   const text = summaryDocument(state.plan);
@@ -438,9 +330,6 @@ function printSummary() {
   frame.print();
 }
 
-function clinicNote(plan, clinicId) {
-  return plan.estimate.clinicNotes.find((note) => note.id === clinicId)?.detail || "Price not publicly available — contact clinic for estimate.";
-}
 
 function choiceCard(title, field, options) {
   return `<article class="card"><h2>${esc(title)}</h2><div class="choices">${options.map(([value, label]) => `<button class="choice" data-action="answer" data-field="${field}" data-value="${value}" aria-pressed="${state.answers[field] === value}">${esc(label)}</button>`).join("")}</div></article>`;
@@ -470,16 +359,13 @@ function normalizedPet() {
 function displayName(pet) {
   return (pet?.name || "").trim() || "Your dog";
 }
-function formatWhen(iso) {
-  return new Date(iso).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-}
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
 }
 function blankPet() { return { name: "", age: "", weight: "", zipCode: "" }; }
 function blankAnswers() { return { symptoms: [], notes: "", duration: null, energy: null, intake: null, detail: null }; }
 function load() {
-  const fresh = { view: "home", step: "pet", pet: blankPet(), answers: blankAnswers(), emergency: {}, plan: null, sort: "soonest", bookingStep: "clinics", chosenClinic: null, chosenSlot: null, regularVet: "" };
+  const fresh = { view: "home", step: "pet", pet: blankPet(), answers: blankAnswers(), emergency: {}, plan: null };
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) || "null");
     if (saved?.plan) fresh.plan = saved.plan;

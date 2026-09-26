@@ -157,7 +157,6 @@ p { margin: 0; }
 .auth { min-height: 100dvh; display: flex; flex-direction: column; justify-content: center; gap: 16px; padding: calc(32px + env(safe-area-inset-top, 0px)) 24px calc(32px + var(--safe-bottom)); }
 .auth-brand { font-family: Georgia, 'Times New Roman', serif; font-size: 34px; font-weight: 700; letter-spacing: -0.01em; }
 .auth-lead { font-size: 16px; color: var(--muted); line-height: 1.45; margin-bottom: 8px; }
-.auth-google { width: 100%; }
 .auth-error { color: var(--badge); font-size: 14px; }
 .auth code { font-size: 13px; background: var(--surface-muted); padding: 1px 5px; border-radius: 6px; }
 .field { display: flex; flex-direction: column; gap: 4px; }

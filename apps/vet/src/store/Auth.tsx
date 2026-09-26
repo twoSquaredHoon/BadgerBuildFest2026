@@ -11,37 +11,29 @@ type Auth = {
   session: Session | null;
   vet: VetProfile | null;
   error: string | null;
-  signInWithGoogle: () => Promise<void>;
+  /** Returns an error message, or null on success. */
+  signIn: (email: string, password: string) => Promise<string | null>;
+  /** Creates the account and signs in. Returns an error message, or null on success. */
+  signUp: (email: string, password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
   saveProfile: (p: Omit<VetProfile, 'id'>) => Promise<void>;
 };
 
 const AuthContext = createContext<Auth | null>(null);
 
-/** Reads an OAuth error Supabase or Google put in the address bar, then removes it. */
-function takeUrlError(): string | null {
-  const params = new URLSearchParams(window.location.search + '&' + window.location.hash.slice(1));
-  const msg = params.get('error_description') ?? params.get('error');
-  if (msg) window.history.replaceState(null, '', window.location.pathname);
-  return msg;
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [sessionLoaded, setSessionLoaded] = useState(false);
   // The vet profile, and which signed-in user it was loaded for.
   const [profile, setProfile] = useState<{ userId: string | null; vet: VetProfile | null }>({ userId: null, vet: null });
-  const [error, setError] = useState<string | null>(() => (supabaseConfigured ? takeUrlError() : null));
+  const [error, setError] = useState<string | null>(null);
 
-  // Follow the sign-in session (also finishes a Google sign-in when the page loads with ?code=…).
+  // Follow the sign-in session (kept on the phone, so vets stay signed in).
   useEffect(() => {
     if (!supabaseConfigured) return;
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setSessionLoaded(true);
-      if (new URLSearchParams(window.location.search).has('code')) {
-        window.history.replaceState(null, '', window.location.pathname);
-      }
     });
     const { data } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
     return () => data.subscription.unsubscribe();
@@ -70,14 +62,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [userId]);
 
-  const signInWithGoogle = useCallback(async () => {
+  // Email + password accounts, stored by Supabase Auth (passwords are hashed there, never in our tables).
+  const signIn = useCallback(async (email: string, password: string) => {
     setError(null);
-    const { error: err } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      // Come back to whichever address the app was opened from (localhost or the tunnel).
-      options: { redirectTo: `${window.location.origin}/`, queryParams: { prompt: 'select_account' } },
-    });
-    if (err) setError(err.message);
+    const { error: err } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    return err ? err.message : null;
+  }, []);
+
+  const signUp = useCallback(async (email: string, password: string) => {
+    setError(null);
+    const { data, error: err } = await supabase.auth.signUp({ email: email.trim(), password });
+    if (err) return err.message;
+    if (!data.session) {
+      return 'Account created, but Supabase wants the email confirmed first. Turn off "Confirm email" in Supabase (see docs/backend-setup.md), then sign in.';
+    }
+    return null;
   }, []);
 
   const signOut = useCallback(async () => {
@@ -107,7 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   else status = 'ready';
 
   return (
-    <AuthContext.Provider value={{ status, session, vet, error, signInWithGoogle, signOut, saveProfile }}>
+    <AuthContext.Provider value={{ status, session, vet, error, signIn, signUp, signOut, saveProfile }}>
       {children}
     </AuthContext.Provider>
   );

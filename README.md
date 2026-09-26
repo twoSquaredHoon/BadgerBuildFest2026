@@ -13,7 +13,7 @@ Both apps are **mobile-first web apps**. Anyone opens them from a link or QR cod
 
 | Part | Status |
 |---|---|
-| Vet app (`apps/vet`) | Built. Google sign-in, live data from Supabase. |
+| Vet app (`apps/vet`) | Built. Email sign-in, live data from Supabase. |
 | Client app (`apps/client`) | Built as PawPlan, a static website. Symptom check, urgency scale, and source-backed Madison prices work in the browser. Booking times are samples and are not sent to a clinic. |
 | Backend | Supabase schema, access rules and realtime written ([setup guide](docs/backend-setup.md)). Triage function not started. |
 
@@ -30,7 +30,7 @@ BadgerBuildFest2026/
 │   └── dog_disease_prediction.xlsx   Symptom → disease sample data for triage
 ├── docs/
 │   ├── architecture.md          How the apps are built and how they connect
-│   ├── backend-setup.md         Create the Supabase project and Google sign-in
+│   ├── backend-setup.md         Create the Supabase project and sign-in
 │   ├── running-and-hosting.md   Run locally and share with a QR code
 │   ├── data.md                  About the triage dataset
 │   ├── prd-client.md            Product requirements: pet owner app
@@ -51,7 +51,7 @@ The vet side: a mobile-first web app for solo vets.
 
 Requires **Node.js 20.19 or newer**.
 
-First set up the backend once: [docs/backend-setup.md](docs/backend-setup.md) (Supabase project, Google sign-in), then copy `apps/vet/.env.example` to `apps/vet/.env` and fill in the two values.
+First set up the backend once: [docs/backend-setup.md](docs/backend-setup.md) (Supabase project, sign-in), then copy `apps/vet/.env.example` to `apps/vet/.env` and fill in the two values.
 
 ```bash
 cd apps/vet
@@ -63,7 +63,7 @@ For a faster demo build: `npm run build` then `npm run serve`. To open it on a p
 
 ### Data
 
-Vets sign in with Google. Booking requests, appointments, patients and messages come from Supabase and update live.
+Vets sign in with email and password. Booking requests, appointments, patients and messages come from Supabase and update live.
 
 ## Client app (`apps/client`) — PawPlan
 
@@ -88,7 +88,7 @@ See [docs/architecture.md](docs/architecture.md) for the folder structure, route
 - **Frontend:** React 19, TypeScript, Vite, React Router
 - **Styling:** plain CSS (`apps/vet/src/styles.css`), phone-width layout
 - **Hosting (demo):** served from a laptop and shared through a free Cloudflare quick tunnel
-- **Backend:** Supabase (Postgres database, Google sign-in, realtime updates); AI triage Edge Function planned
+- **Backend:** Supabase (Postgres database, email sign-in, realtime updates); AI triage Edge Function planned
 
 ## Documentation
 

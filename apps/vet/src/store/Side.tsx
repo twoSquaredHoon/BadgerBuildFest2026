@@ -2,8 +2,8 @@ import { createContext, useCallback, useContext, useState, type ReactNode } from
 
 /**
  * Which side of the app this phone is using. Only the vet side lives in this React app;
- * the pet owner side (PawPlan) is served at /owner/. Remembered so the Google sign-in
- * redirect comes back to the vet side instead of the start screen.
+ * the pet owner side (PawPlan) is served at /owner/. Remembered so a reload
+ * stays on the vet side instead of the start screen.
  */
 const KEY = 'bbf-side';
 
