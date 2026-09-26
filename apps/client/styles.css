@@ -103,6 +103,8 @@ textarea { min-height: 96px; resize: vertical; }
   outline: 2px solid var(--green);
 }
 .note { font-size: 0.86rem; color: var(--muted); }
+.factors { margin: 8px 0 0; padding-left: 1.1rem; display: grid; gap: 6px; }
+.factors li.up { color: var(--orange); }
 .badge {
   display: inline-flex;
   width: fit-content;

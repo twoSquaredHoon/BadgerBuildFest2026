@@ -1,6 +1,6 @@
 import {
   SYMPTOMS, assistance, clinics, detailQuestion, emergencyPlan, evaluate, petIsValid,
-  slotsFor, summaryDocument, urgencyInfo, urgencyScale
+  slotsFor, summaryDocument, urgencyInfo, urgencyScale, clinicsByDistance, formatMiles, selectPublished, priceLabel
 } from "./care.js";
 
 const KEY = "pawplan.web.v1";
@@ -119,7 +119,7 @@ function home() {
     <section class="stack">
       <p class="eyebrow">A little less worry. A clear next step.</p>
       <h1>Big love.<br>Fewer unknowns.</h1>
-      <p class="muted">When your dog isn’t quite themselves, see what a visit may involve and which published Madison prices apply.</p>
+      <p class="muted">When your dog isn’t quite themselves, see what a visit may involve and which published Wisconsin clinic prices apply to your ZIP code.</p>
       <div class="hero-actions">
         <button class="primary" data-action="start" id="startCheck">Check my dog’s symptoms <span>→</span></button>
         <button class="ghost" data-go="emergency">Something feels urgent? Find emergency help</button>
@@ -147,7 +147,7 @@ function petStep() {
       ${field("Weight in pounds", "petWeight", state.pet.weight, "e.g. 25", "decimal")}
       ${field("ZIP code", "petZip", state.pet.zipCode, "e.g. 53703", "text")}
     </div>
-    <p class="note">Enter an age from 0–30 years and a weight above 0 and up to 350 lb. Madison ZIP codes use published local prices. Other ZIP codes are not given Madison prices.</p>
+    <p class="note">Enter an age from 0–30 years and a weight above 0 and up to 350 lb. A Wisconsin ZIP code is matched to clinic-published prices by distance. Outside Wisconsin, no Wisconsin price is shown.</p>
     <button class="primary" id="continuePet" data-action="continue-pet" ${petReady() ? "" : "disabled"}>Continue to safety check</button>
     <button class="ghost" data-action="emergency-now">Get emergency help now</button>`;
 }
@@ -191,7 +191,7 @@ function questionStep() {
     ${choiceCard("How is their energy?", "energy", [["normal", "Like usual"], ["reduced", "Quieter than usual"], ["severe", "Very weak / collapsing"]])}
     ${choiceCard("Are they eating and drinking?", "intake", [["normal", "Eating & drinking"], ["reduced", "Eating or drinking less"], ["unable", "Cannot keep water down"]])}
     ${choiceCard(detailQuestion(state.answers.symptoms), "detail", [["mild", "Mild / occasional"], ["repeated", "Repeated / worsening"], ["redFlag", "Blood or severe pain"]])}
-    <p class="note">Urgency uses fixed demo rules, not a clinical AI. Dollar amounts appear only when a published source is on file.</p>
+    <p class="note">The level is read from these answers. It is not a diagnosis. Dollar amounts appear only when a published source is on file.</p>
     <button class="primary" id="createPlan" data-action="create-plan" ${answersComplete() ? "" : "disabled"}>See my care plan</button>`;
 }
 
@@ -204,8 +204,12 @@ function planView() {
   const info = urgencyInfo(plan.urgency);
   const estimate = plan.estimate;
   const booking = plan.booking ? `<article class="card"><p class="badge">Demo appointment saved</p><h2>${esc(plan.booking.clinicName)}</h2><p>${esc(formatWhen(plan.booking.when))}</p><p class="muted">${esc(plan.booking.address)}</p><p>${esc(clinicNote(plan, plan.booking.clinicId))}</p><p class="note">This is a practice booking. No clinic has received it.</p><button class="ghost" data-action="book">Reschedule</button><button class="ghost" data-action="cancel-booking">Cancel demo appointment</button></article>` : "";
-  const possible = estimate.possibleLines.length ? `<hr><h2>Possible additional services</h2><p class="note">These are not assumed to be part of the visit.</p>${estimate.possibleLines.map((line) => `<div class="row"><div><strong>${esc(line.name)}</strong>${line.confidenceLabel ? `<div class="confidence">${esc(line.confidenceLabel)}</div>` : ""}</div><span>${esc(line.priceLabel)}</span></div>`).join("")}` : "";
-  const price = estimate.expectedPriceLabel ? `<p class="price">${esc(estimate.expectedPriceLabel)}</p><p class="note">${esc(estimate.expectedCaption || "")}</p>` : "";
+  const factors = (plan.factors || []).length ? `<ul class="factors">${plan.factors.map((factor) => `<li class="${esc(factor.tone)}">${esc(factor.text)}</li>`).join("")}</ul>` : "";
+  const watch = (plan.watch || []).length ? `<h2>What would make this more urgent</h2><ul>${plan.watch.map((item) => `<li>${esc(item)}</li>`).join("")}</ul>` : "";
+  const priceRows = (estimate.priceLines || []).map((line) => `<div class="row"><div><strong>${esc(line.clinicName)}</strong><p class="note">${esc(line.serviceName)} · ${esc(line.city)}, WI — ${esc(line.milesText)} away</p></div><span>${esc(line.priceLabel)}</span></div>`).join("");
+  const possible = estimate.possibleLines.length ? `<hr><h2>Possible additional services</h2><p class="note">These are not assumed to be part of the visit. Each one is listed because of a symptom you reported.</p>${estimate.possibleLines.map((line) => `<div><strong>${esc(line.name)}</strong><p class="note">${esc(line.why || "")}</p>${line.prices?.length ? line.prices.map((price) => `<div class="row"><div><span class="note">${esc(price.clinicName)} · ${esc(price.city)}, WI — ${esc(price.milesText)} away</span></div><span>${esc(price.priceLabel)}</span></div>`).join("") : `<p>${esc(line.priceLabel)}</p>`}</div>`).join("")}` : "";
+  const comparison = (estimate.comparison || []).length ? `<hr><h2>Other published exam prices</h2><p class="note">Different services, ranked by distance. They are not added to the starting price.</p>${estimate.comparison.map((line) => `<div class="row"><div><strong>${esc(line.name)}</strong><p class="note">${esc(line.clinicName)} · ${esc(line.city)}, WI — ${esc(line.milesText)} away. ${esc(line.why)}</p></div><span>${esc(line.priceLabel)}</span></div>`).join("")}` : "";
+  const price = estimate.expectedPriceLabel ? `<p class="price">${esc(estimate.expectedPriceLabel)}</p><p class="note">${esc(estimate.expectedCaption || "")}</p>${priceRows}` : "";
   const starting = estimate.startingStatement === estimate.regionBanner ? "" : `<p>${esc(estimate.startingStatement)}</p>`;
   return `
     <section class="stack">
@@ -215,7 +219,9 @@ function planView() {
         <h2>${esc(info.title)}</h2>
         <p>${esc(info.timing)}</p>
         <p class="muted">${esc(plan.reason)}</p>
+        ${factors}
         ${urgencyScaleMarkup(plan.urgency)}
+        ${watch}
         <hr>
         <p><strong>${esc(displayName(plan.pet))}</strong><br><span class="muted">Dog · ${esc(plan.pet.age)} years · ${esc(plan.pet.weight)} lb · ZIP ${esc(plan.pet.zipCode || "not provided")}</span></p>
         <p>${esc(plan.answers.symptoms.join(", "))}</p>
@@ -225,17 +231,19 @@ function planView() {
       <article class="card sage" id="costCard">
         <p class="eyebrow">Let’s talk about cost</p>
         <p id="pricingBanner"><strong>${esc(estimate.regionBanner)}</strong></p>
+        ${estimate.closerNote ? `<p class="note">${esc(estimate.closerNote)}</p>` : ""}
         ${starting}
         ${price}
         ${possible}
         ${estimate.potentialStatement ? `<p class="note">${esc(estimate.potentialStatement)}</p>` : ""}
+        ${comparison}
         <hr>
         <h2>Clinics</h2>
-        ${estimate.clinicNotes.map((note) => `<div><strong>${esc(note.clinicName)}</strong><p class="note">${esc(note.detail)}</p></div>`).join("")}
+        ${estimate.clinicNotes.map((note) => `<div><strong>${esc(note.clinicName)}</strong><p class="note">${esc(note.city || "")}${note.milesText ? `, WI — ${esc(note.milesText)} away` : ""}${note.careType ? ` · ${esc(careLabel(note.careType))}` : ""}</p><p class="note">${esc(note.detail)}</p>${note.phone ? `<p class="note">${esc(note.phone)}</p>` : ""}</div>`).join("")}
         <details id="howWeEstimated">
-          <summary>How we estimated this</summary>
+          <summary>Price sources</summary>
           <div class="provenance">
-            ${estimate.provenance.map((line) => `<div><strong>${esc(line.service)}</strong><p>${esc(line.price)}</p>${line.sourceName ? `<p>Source: ${esc(line.sourceName)}</p><p><a href="${esc(line.sourceURL)}">View source</a></p><p>${esc(line.geographicScope)}</p><p>${esc(line.dateText)}</p><p>${esc(line.evidenceLabel)} ${esc(line.confidenceLabel)}</p>` : ""}${line.applied ? "" : "<p>Not used as the starting price for this check.</p>"}<p class="note">${esc(line.notes)}</p></div>`).join("")}
+            ${estimate.provenance.map((line) => `<div><strong>${esc(line.service)}</strong><p>${esc(line.price)}</p>${line.clinicName ? `<p>${esc(line.clinicName)}${line.city ? ` · ${esc(line.city)}, WI` : ""}${line.milesText ? ` — ${esc(line.milesText)} away` : ""}</p>` : ""}${line.sourceName ? `<p>Source: ${esc(line.sourceName)}</p><p><a href="${esc(line.sourceURL)}">View source</a></p><p>${esc(line.geographicScope || "")}</p><p>${esc(line.dateText)}</p><p>${esc(line.evidenceLabel)} ${esc(line.confidenceLabel)}</p>` : ""}${line.applied ? "" : "<p>Not used as the starting price for this check.</p>"}<p class="note">${esc(line.notes || "")}</p></div>`).join("")}
           </div>
         </details>
         <p class="note">${esc(estimate.additionalDisclaimer)}</p>
@@ -257,15 +265,15 @@ function booking() {
   if (state.bookingStep === "time") return timeStep();
   if (state.bookingStep === "review") return reviewStep();
   if (state.bookingStep === "done") return doneStep();
-  const available = clinics.map((clinic) => ({ clinic, slots: slotsFor(clinic, state.plan) })).filter((item) => item.slots.length);
-  available.sort((a, b) => state.sort === "name" ? a.clinic.name.localeCompare(b.clinic.name) : a.slots[0].localeCompare(b.slots[0]));
+  const available = clinicsByDistance(state.plan.pet.zipCode).map((clinic) => ({ clinic, slots: slotsFor(clinic, state.plan) })).filter((item) => item.slots.length);
+  available.sort((a, b) => state.sort === "name" ? a.clinic.name.localeCompare(b.clinic.name) : a.slots[0].localeCompare(b.slots[0]) || (a.clinic.miles ?? 9999) - (b.clinic.miles ?? 9999));
   return `
     <section class="stack">
       <p class="eyebrow">Find a clinic</p>
       <h1>Good care, a little closer.</h1>
-      <p class="note">Clinic names and published prices are real. These openings are samples, not live appointments. No visit will be reserved.</p>
+      <p class="note">Clinic names and published prices are real. These openings are samples, not live appointments. No visit will be reserved. Hours are the clinic’s published hours. Open or closed is not calculated here.</p>
       <div class="choices"><button class="choice" data-action="sort" data-sort="soonest" aria-pressed="${state.sort !== "name"}">Soonest</button><button class="choice" data-action="sort" data-sort="name" aria-pressed="${state.sort === "name"}">Name</button></div>
-      ${available.map(({ clinic, slots }) => `<button class="card" data-action="pick-clinic" data-clinic="${clinic.id}" id="clinic_${clinic.id}"><strong>${esc(clinic.name)}</strong><p class="muted">${esc(clinic.neighborhood)} · ${esc(clinic.phone)}</p><p>${esc(clinicNote(state.plan, clinic.id))}</p><p>Next sample time: ${esc(formatWhen(slots[0]))}</p></button>`).join("")}
+      ${available.map(({ clinic, slots }) => clinicCard(clinic, state.plan, slots[0])).join("")}
       <label class="card field"><span>Already have a vet?</span><input id="regularVet" value="${esc(state.regularVet)}" placeholder="Your vet’s name"><p class="note">${state.regularVet.trim() ? `Contact ${esc(state.regularVet)} directly. This site cannot reserve a real visit.` : "Call your regular vet and bring your summary. Real clinic booking is not connected."}</p></label>
       <button class="ghost" data-action="back-booking">Back to my plan</button>
     </section>`;
@@ -321,6 +329,17 @@ function doneStep() {
 
 function emergencyView() {
   const reason = state.plan?.urgency === "emergency" ? `<p class="muted">${esc(state.plan.reason)}</p>` : "";
+  const zip = state.plan?.pet?.zipCode || "";
+  const selection = selectPublished("emergencyExam", zip);
+  const priced = new Set(selection.records.map((record) => record.clinicID));
+  const listed = clinicsByDistance(zip).filter((clinic) => clinic.careType === "emergency" || priced.has(clinic.id));
+  const farther = selection.tier === "regional" || selection.tier === "statewide";
+  const priceFor = (clinic) => {
+    const record = selection.records.find((item) => item.clinicID === clinic.id);
+    if (!record) return "Price not publicly available — contact clinic for estimate.";
+    const away = clinic.miles == null ? "" : ` · ${formatMiles(clinic.miles)} away`;
+    return `${record.serviceLabel} ${priceLabel(record.lowPrice, record.highPrice, record.confidence)} · ${clinic.city}, WI${away}. Clinic-published. Checked ${record.accessedDate}.`;
+  };
   return `
     <section class="stack">
       <p class="eyebrow">Emergency help</p>
@@ -328,21 +347,50 @@ function emergencyView() {
       <p>Call an emergency vet now. You don’t need to finish this check or book an appointment here.</p>
       ${reason}
       ${state.plan?.urgency === "emergency" ? urgencyScaleMarkup("emergency") : ""}
+      ${zip ? `<p class="note">${farther ? "Closest publicly available Wisconsin emergency price." : "Published emergency prices are matched to your ZIP code."} ${farther ? "No qualifying published emergency price was found closer to your ZIP code." : ""}</p>` : `<p class="note">Enter a Wisconsin ZIP code in the symptom check to see distance. No price is filled in without a published source.</p>`}
+      ${listed.map((clinic) => `<article class="card" id="emergency_${clinic.id}">
+        <div class="row"><h2>${esc(clinic.name)}</h2><span class="badge">${esc(careLabel(clinic.careType))}</span></div>
+        <p class="muted">${esc(clinic.address)}${clinic.miles == null ? "" : `<br>${esc(formatMiles(clinic.miles))} from ${esc(zip)}`}</p>
+        <p>${esc(priceFor(clinic))}</p>
+        <p class="note">${esc(clinic.hours || "")}</p>
+        <a class="primary emergency" href="tel:${esc(telHref(clinic.phone))}">Call ${esc(clinic.phone)}</a>
+        <a href="${esc(directionsHref(clinic.address))}">Get directions</a>
+        ${clinic.website ? `<a href="${esc(clinic.website)}">Clinic page</a>` : ""}
+      </article>`).join("")}
       <article class="card">
-        <div class="row"><h2>VEG Madison</h2><span class="badge">24/7</span></div>
-        <p class="muted">7456 Mineral Point Road<br>Madison, WI 53717</p>
-        <a class="primary emergency" href="tel:+16087163255">Call (608) 716-3255</a>
-        <a href="https://maps.google.com/?daddr=7456+Mineral+Point+Road+Madison+WI+53717">Get directions</a>
-        <a href="https://www.veg.com/locations/wisconsin/madison">Clinic details</a>
-      </article>
-      <article class="card">
-        <h2>Another Madison option</h2>
-        <p class="muted">UW Veterinary Care · 24/7 emergency services</p>
+        <h2>UW Veterinary Care</h2>
+        <p class="muted">24/7 emergency services · Madison</p>
+        <p>Price not publicly available — contact clinic for estimate.</p>
         <a href="tel:+16082637600">Call (608) 263-7600</a>
       </article>
-      <p class="note">These are Madison contacts, not a nearest-clinic search. If you’re elsewhere, find your closest emergency veterinarian.</p>
+      ${state.plan?.urgency === "emergency" && state.plan.estimate?.provenance?.length ? `<details id="howWeEstimated"><summary>Price sources</summary><div class="provenance">${state.plan.estimate.provenance.map((line) => `<div><strong>${esc(line.service)}</strong><p>${esc(line.price)}</p><p>${esc(line.clinicName || "")}${line.city ? ` · ${esc(line.city)}, WI` : ""}${line.milesText ? ` — ${esc(line.milesText)} away` : ""}</p>${line.sourceURL ? `<p><a href="${esc(line.sourceURL)}">View source</a></p><p>${esc(line.dateText || "")}</p><p>${esc(line.evidenceLabel || "")}</p>` : ""}</div>`).join("")}</div></details>` : ""}
       ${state.plan?.urgency === "emergency" ? `<button class="ghost" data-action="print">Print or save this summary</button><button class="ghost" data-action="start">Start a new check</button>` : ""}
     </section>`;
+}
+
+function clinicCard(clinic, plan, nextSlot) {
+  return `<article class="card" id="clinic_${clinic.id}">
+    <strong>${esc(clinic.name)}</strong>
+    <p class="muted">${esc(clinic.city)}, WI${clinic.miles == null ? "" : ` — ${esc(formatMiles(clinic.miles))} away`} · ${esc(careLabel(clinic.careType))} · ${esc(clinic.phone)}</p>
+    <p>${esc(clinicNote(plan, clinic.id))}</p>
+    <p class="note">${esc(clinic.hours || "")}</p>
+    <p>Next sample time: ${esc(formatWhen(nextSlot))}</p>
+    <p>${clinic.website ? `<a href="${esc(clinic.website)}">Website</a> · ` : ""}<a href="${esc(directionsHref(clinic.address))}">Directions</a></p>
+    <button class="primary" data-action="pick-clinic" data-clinic="${clinic.id}">See sample times</button>
+  </article>`;
+}
+
+function careLabel(type) {
+  return { general: "Regular care", urgent: "Urgent care", wellness: "Wellness care", emergency: "Emergency care" }[type] || "Regular care";
+}
+
+function directionsHref(address) {
+  return `https://maps.google.com/?daddr=${encodeURIComponent(address)}`;
+}
+
+function telHref(phone) {
+  const digits = String(phone).replace(/\D/g, "");
+  return digits.length === 10 ? `+1${digits}` : `+${digits}`;
 }
 
 function urgencyScaleMarkup(current) {

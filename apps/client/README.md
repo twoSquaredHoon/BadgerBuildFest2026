@@ -1,6 +1,6 @@
 # Client app (pet owner side)
 
-PawPlan is the pet-owner website. A dog owner enters a profile, passes an emergency check, reports symptoms, and sees a demo urgency level next to the full 1–4 scale. Madison ZIP codes show published clinic prices with their sources. Other ZIP codes are not given Madison prices. Financial-assistance links are real Madison and Wisconsin programs. Appointment times are samples and are not sent to a clinic.
+PawPlan is the pet-owner website. A dog owner enters a profile, passes an emergency check, reports symptoms, and sees a demo urgency level next to the full 1–4 scale. A Wisconsin ZIP code is matched to clinic-published prices by distance. A price from outside the immediate area shows the clinic and how far away it is. Outside Wisconsin, no Wisconsin price is shown. Financial-assistance links are real Madison and Wisconsin programs. Appointment times are samples and are not sent to a clinic.
 
 ## Run
 

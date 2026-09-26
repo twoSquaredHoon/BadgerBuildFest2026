@@ -1,41 +1,57 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  COPY, assistance, canonicalSum, emergencyPlan, estimateCost, evaluate, isMadisonZip,
-  mapServices, moneyAmounts, priceLabel, pricingRecords, recordsFor, summaryDocument, urgencyScale
+  COPY, assistance, canonicalSum, clinics, emergencyPlan, estimateCost, evaluate, isWisconsinZip,
+  mapServices, moneyAmounts, priceLabel, pricingRecords, recordsFor, selectPublished, summaryDocument, urgencyScale
 } from "./care.js";
 
 const mild = { symptoms: ["Itchy skin"], notes: "", duration: "recent", energy: "normal", intake: "normal", detail: "mild" };
 
-test("madison medical concern uses the published Precision price", () => {
+test("a mild itch uses the published routine exam and a symptom visit uses the medical-concern price", () => {
   const plan = evaluate({ name: "Mochi", age: 3, weight: 25, zipCode: "53703" }, mild);
-  assert.equal(plan.estimate.expectedPriceLabel, "$75");
-  assert.equal(plan.estimate.regionBanner, COPY.madisonBanner);
-  assert.equal(plan.estimate.provenance.find((item) => item.id === "precision-medical-concern").sourceURL, "https://precisionveterinary.com/services/");
+  assert.equal(plan.estimate.regionBanner, "Published veterinary prices near 53703");
+  assert.equal(plan.estimate.tier, "local");
+  assert.ok(plan.estimate.priceLines.some((line) => line.priceLabel === "starts at $55" && line.clinicName.includes("Precision")));
+  assert.ok(plan.estimate.priceLines.some((line) => line.priceLabel === "$40"));
   assert.equal(plan.urgency, "monitor");
+  assert.match(plan.reason, /lowest level/);
+  assert.ok(plan.factors.some((factor) => factor.text.includes("Itchy skin")));
+  assert.equal(plan.estimate.comparison.some((line) => line.priceLabel === "$75"), true);
+  const visit = { symptoms: ["Vomiting"], notes: "", duration: "longer", energy: "reduced", intake: "normal", detail: "mild" };
+  const sick = evaluate({ name: "Mochi", age: 3, weight: 25, zipCode: "53703" }, visit);
+  assert.equal(sick.urgency, "soon");
+  assert.equal(sick.estimate.expectedPriceLabel, "$60–$75");
+  assert.match(sick.reason, /lasted 3 or more days/);
+  assert.match(sick.reason, /energy is lower than usual/);
+  assert.equal(sick.estimate.provenance.find((item) => item.id === "precision-medical-concern").sourceURL, "https://precisionveterinary.com/services/");
 });
 
 test("every catalog price has a source and unsupported areas get no dollars", () => {
   assert.ok(pricingRecords.length > 0);
   for (const record of pricingRecords) {
     assert.ok(record.sourceURL.startsWith("https://"));
-    assert.equal(record.geographicArea, "Madison, WI");
     assert.equal(record.evidence, "clinicPosted");
     assert.equal(record.confidence, "HIGH");
     assert.equal(record.medianPrice, null);
     assert.equal(record.clinicName != null, true);
+    assert.ok(["fixed", "starting-at", "range"].includes(record.priceType));
+    const clinic = clinics.find((item) => item.id === record.clinicID);
+    assert.equal(clinic.state, "WI");
+    assert.equal(typeof clinic.lat, "number");
   }
-  for (const service of ["xray", "bloodworkCBC", "allergyTesting", "urinalysis", "ivFluids", "ultrasound", "emergencyExam"]) {
+  for (const service of ["xray", "bloodworkCBC", "allergyTesting", "urinalysis", "ivFluids", "ultrasound"]) {
     assert.equal(recordsFor(service).length, 0);
   }
-  for (const zip of ["", "53562", "53202", "60614", "53702"]) {
+  for (const zip of ["", "60614", "53702"]) {
     const plan = evaluate({ age: 3, weight: 25, zipCode: zip }, mild);
     assert.equal(plan.estimate.isSupportedRegion, false);
     assert.equal(plan.estimate.regionBanner, COPY.unavailable);
     assert.equal(moneyAmounts(plan.estimate.summaryText).length, 0);
     assert.ok(plan.estimate.clinicNotes.every((note) => note.detail === COPY.clinicUnavailable));
   }
-  assert.equal(isMadisonZip("53703-1234"), true);
+  assert.equal(isWisconsinZip("53703-1234"), true);
+  assert.equal(isWisconsinZip("53202"), true);
+  assert.equal(isWisconsinZip("60614"), false);
 });
 
 test("clinics are not priced with multipliers and missing services stay unavailable", () => {
@@ -47,7 +63,7 @@ test("clinics are not priced with multipliers and missing services stay unavaila
   assert.equal(limpEstimate.potentialStatement, null);
 
   const digestive = estimateCost(mapServices({ symptoms: ["Vomiting"], notes: "", duration: "recent", energy: "normal", intake: "normal", detail: "mild" }, "fewDays"), "53703");
-  assert.deepEqual(digestive.possibleLines.map((line) => line.name), ["Fecal test", "Bloodwork / CBC"]);
+  assert.deepEqual(digestive.possibleLines.map((line) => line.name), ["Fecal exam", "Bloodwork / CBC"]);
   assert.equal(digestive.possibleLines[1].priceLabel, COPY.serviceUnavailable);
   assert.deepEqual(digestive.potentialComponentAmounts, ["75", "25"]);
   assert.match(digestive.potentialStatement, /Potential cost if these listed services are performed/);
@@ -62,16 +78,32 @@ test("clinics are not priced with multipliers and missing services stay unavaila
   assert.equal(notes.precision, "$75 · Medical-concern appointment");
   assert.match(notes["banfield-east"], /\$76\.95/);
   assert.match(notes["banfield-east"], /Price not publicly available/);
-  assert.equal(notes.wcvc, COPY.clinicUnavailable);
-  assert.equal(notes.wcvc.includes("$"), false);
+  assert.equal(notes.wcvc, "$60 · Sick/injured urgent wellness visit");
+  assert.equal(notes.veg, COPY.clinicUnavailable);
+  assert.equal(notes.veg.includes("$"), false);
+});
+
+test("another Wisconsin ZIP does not silently reuse Madison prices", () => {
+  const milwaukee = selectPublished("medicalConcernExam", "53202");
+  assert.equal(milwaukee.tier, "local");
+  assert.deepEqual(milwaukee.records.map((record) => record.clinicID).sort(), ["haws", "new-berlin"]);
+  assert.ok(milwaukee.records.every((record) => record.miles <= 25));
+  const eauClaire = selectPublished("medicalConcernExam", "54701");
+  assert.equal(eauClaire.tier, "statewide");
+  assert.match(estimateCost(mapServices({ symptoms: ["Vomiting"], notes: "", duration: "recent", energy: "normal", intake: "normal", detail: "mild" }, "fewDays"), "54701").closerNote, /No qualifying published price was found closer/);
+  const greenBay = selectPublished("urgentExam", "54301");
+  assert.equal(greenBay.tier, "local");
+  assert.equal(greenBay.records[0].clinicID, "ashwaubenon");
+  assert.equal(greenBay.records[0].lowPrice, "112");
 });
 
 test("emergency and severe answers do not invent an exam price", () => {
   const severe = evaluate({ age: 3, weight: 25, zipCode: "53703" }, { ...mild, energy: "severe" });
   assert.equal(severe.urgency, "emergency");
-  assert.equal(moneyAmounts(severe.estimate.summaryText).length, 0);
   assert.equal(severe.estimate.summaryText.includes("85"), false);
-  const collapsed = emergencyPlan({ age: 4, weight: 20, zipCode: "53202" }, mild, "Collapse");
+  assert.equal(severe.estimate.summaryText.includes("$75"), false);
+  for (const amount of moneyAmounts(severe.estimate.summaryText)) assert.equal(amount, "$162");
+  const collapsed = emergencyPlan({ age: 4, weight: 20, zipCode: "60614" }, mild, "Collapse");
   assert.equal(moneyAmounts(collapsed.estimate.summaryText).length, 0);
 });
 

@@ -1,20 +1,21 @@
-/** Published veterinary prices and the check that maps symptoms to service categories. Dollar amounts are copied from the cited pages. */
+/** Symptom check and distance-ranked clinic prices. Dollar amounts come only from pricing-data.js. */
+
+import { clinics as clinicList, pricingRecords as priceList } from "./pricing-data.js";
+import { ZIP_CENTROIDS } from "./zip-centroids.js";
+
+export const clinics = clinicList;
+export const pricingRecords = priceList;
 
 export const COPY = {
-  madisonBanner: "Pricing based on available Madison-area data.",
   unavailable: "Local pricing data is not yet available for this area.",
   clinicUnavailable: "Price not publicly available — contact clinic for estimate.",
   serviceUnavailable: "Price unavailable",
   additional: "Additional diagnostics may increase the cost. Your veterinarian will provide the actual treatment estimate.",
   potentialLead: "Potential cost if these listed services are performed",
-  startingLead: "Based on currently available Madison-area pricing, an initial exam may start around "
+  closerNote: "No qualifying published price was found closer to your ZIP code.",
+  localLead: "Published veterinary prices near ",
+  fartherLead: "Closest publicly available Wisconsin pricing"
 };
-
-const MADISON_ZIPS = new Set([
-  "53701", "53703", "53704", "53705", "53706", "53707", "53708",
-  "53711", "53713", "53714", "53715", "53716", "53717", "53718",
-  "53719", "53726"
-]);
 
 const SERVICE_LABELS = {
   routineExam: "Routine exam",
@@ -38,21 +39,13 @@ const EXAMS = new Set(["routineExam", "medicalConcernExam", "officeVisit", "urge
 
 const EVIDENCE_LABELS = {
   clinicPosted: "Clinic-published price",
-  aggregatedMarketEstimate: "Madison-area estimate",
+  aggregatedMarketEstimate: "Unsourced market estimate",
   reportedInvoice: "Reported invoice"
 };
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 export const SYMPTOMS = ["Vomiting", "Diarrhea", "Limping", "Not eating", "Low energy", "Itchy skin", "Ear discomfort", "Coughing", "Eye irritation", "Urinary changes"];
-
-export const clinics = [
-  { id: "precision", name: "Precision Veterinary Madison", neighborhood: "West side · Odana Rd", address: "6107 Odana Rd, Madison, WI 53719", phone: "(608) 405-3148", dayOffset: 0 },
-  { id: "banfield-east", name: "Banfield Pet Hospital — Madison East", neighborhood: "East side · E Springs Dr", address: "2216 E Springs Dr, Madison, WI 53704", phone: "(608) 243-1649", dayOffset: 1 },
-  { id: "underdog", name: "Underdog Vet Services", neighborhood: "South side · Stoughton Rd", address: "2508 S Stoughton Road, Madison, WI 53716", phone: "(608) 268-7060", dayOffset: 0 },
-  { id: "truesdell", name: "Truesdell Animal Care Hospital", neighborhood: "East side · Milwaukee St", address: "4214 Milwaukee Street, Madison, WI 53714", phone: "(608) 244-2555", dayOffset: 1 },
-  { id: "wcvc", name: "Wisconsin Community Veterinary Center", neighborhood: "East side · Robertson Rd", address: "4475 Robertson Rd, Madison, WI 53714", phone: "(608) 224-1400", dayOffset: 2 }
-];
 
 export const assistance = [
   { id: "wcvc", name: "Wisconsin Community Veterinary Center", summary: "Madison nonprofit clinic. Its financial-assistance page lists payment partners and outside funds, including a Grey Muzzle grant for senior dogs.", eligibility: "Grey Muzzle assistance is described for dogs 7 years and older and requires WCVC’s Veterinary Assistance Program application. Lifeline is described for low-income families. PawPlan does not decide who qualifies.", url: "https://www.wicvc.org/financial-assistance" },
@@ -62,38 +55,16 @@ export const assistance = [
   { id: "wcvc-listed-funds", name: "Funds WCVC suggests before a payment plan", summary: "WCVC’s assistance page names Bow Wow Buddies, Heart Finance, Noah’s Animal Fund, Red Rover, and The Pet Fund.", eligibility: "Bow Wow Buddies: up to $2,500 for certain serious or emergency care; not spay/neuter, dentals, preventative care, ongoing treatment, or end-of-life care; not for money needed the same day. Heart Finance: grants up to $500 for one pet in a three-month period; review takes three to four days. Noah’s Animal Fund: Rock, Jefferson, Green, and Walworth counties only, so Dane County is outside that list; not preventative care. Red Rover: life-threatening situations; WCVC says the average grant is about $250 and is meant to fill a small gap. The Pet Fund: non-basic, non-urgent care. Confirm current rules on the WCVC page.", url: "https://www.wicvc.org/financial-assistance" }
 ];
 
-const ACCESSED = "2026-09-26";
-
-function record(fields) {
-  return {
-    medianPrice: null,
-    geographicArea: "Madison, WI",
-    accessedDate: ACCESSED,
-    evidence: "clinicPosted",
-    confidence: "HIGH",
-    publishedDate: null,
-    ...fields
-  };
-}
-
-export const pricingRecords = [
-  record({ id: "precision-routine-exam", service: "routineExam", serviceLabel: "Routine exam", lowPrice: "55", highPrice: null, clinicID: "precision", clinicName: "Precision Veterinary Madison", sourceName: "Precision Veterinary Madison", sourceURL: "https://precisionveterinary.com/services/", notes: "Published as routine exams starting at $55. No upper price is published, so no high price is stored." }),
-  record({ id: "precision-medical-concern", service: "medicalConcernExam", serviceLabel: "Medical-concern appointment", lowPrice: "75", highPrice: "75", clinicID: "precision", clinicName: "Precision Veterinary Madison", sourceName: "Precision Veterinary Madison", sourceURL: "https://precisionveterinary.com/services/", notes: "Published as a medical-concern appointment price on the clinic services page." }),
-  record({ id: "precision-fecal", service: "fecalExam", serviceLabel: "Fecal test", lowPrice: "25", highPrice: "25", clinicID: "precision", clinicName: "Precision Veterinary Madison", sourceName: "Precision Veterinary Madison", sourceURL: "https://precisionveterinary.com/services/", notes: "Published on the add-on services list. The clinic asks clients to bring a stool sample." }),
-  record({ id: "precision-ear-cleaning", service: "earCleaning", serviceLabel: "Ear cleaning", lowPrice: "20", highPrice: "20", clinicID: "precision", clinicName: "Precision Veterinary Madison", sourceName: "Precision Veterinary Madison", sourceURL: "https://precisionveterinary.com/services/", notes: "Listed at $20. Free for surgical patients in recovery." }),
-  record({ id: "precision-preop-bloodwork", service: "preoperativeBloodwork", serviceLabel: "Pre-operative bloodwork", lowPrice: "65", highPrice: "65", clinicID: "precision", clinicName: "Precision Veterinary Madison", sourceName: "Precision Veterinary Madison", sourceURL: "https://precisionveterinary.com/services/", notes: "Published in the dental section as bloodwork strongly recommended at $65. This is pre-operative bloodwork for a dental procedure, not a diagnostic CBC." }),
-  record({ id: "banfield-east-office-visit", service: "officeVisit", serviceLabel: "Office visit", lowPrice: "76.95", highPrice: "76.95", clinicID: "banfield-east", clinicName: "Banfield Pet Hospital — Madison East", sourceName: "Banfield Pet Hospital — Madison East", sourceURL: "https://www.banfield.com/locations/veterinarians/wi/madison/emn/service-pricing", publishedDate: "2025-05-14", notes: "Banfield labels this as an estimate and says pricing may vary. An additional office-visit fee is required for other services, including vaccines." }),
-  record({ id: "underdog-urgent-exam", service: "urgentExam", serviceLabel: "Urgent-care walk-in exam", lowPrice: "85", highPrice: "85", clinicID: "underdog", clinicName: "Underdog Vet Services", sourceName: "Underdog Vet Services", sourceURL: "https://www.underdogpetrescue.org/vet-clinic", notes: "Published as the exam fee for urgent-care walk-in appointments, Monday–Friday 1–5 p.m., first come, first served." }),
-  record({ id: "truesdell-new-client-exam", service: "newClientExam", serviceLabel: "New-client first comprehensive exam", lowPrice: "38", highPrice: "38", clinicID: "truesdell", clinicName: "Truesdell Animal Care Hospital and Clinic", sourceName: "Truesdell Animal Care Hospital and Clinic", sourceURL: "https://www.trueanimalcare.com/new-client-information/", notes: "New clients’ first comprehensive exam. The offer must be mentioned at or before checkout on the same day and cannot be combined with other discounts." })
-];
-
 export function normalizeZip(zip) {
   return String(zip || "").replace(/\D/g, "").slice(0, 5);
 }
 
+export function isWisconsinZip(zip) {
+  return Boolean(ZIP_CENTROIDS[normalizeZip(zip)]);
+}
+
 export function isMadisonZip(zip) {
-  const digits = String(zip || "").replace(/\D/g, "");
-  return digits.length >= 5 && MADISON_ZIPS.has(digits.slice(0, 5));
+  return isWisconsinZip(zip) && normalizeZip(zip).startsWith("537");
 }
 
 export function recordsFor(service, clinicID) {
@@ -143,28 +114,124 @@ function dateText(item) {
 }
 
 function scopeLabel(item) {
-  return item.clinicName ? `Clinic-specific · ${item.geographicArea}` : `${item.geographicArea} estimate`;
+  const place = item.city ? `${item.city}, WI` : "Wisconsin";
+  return `Clinic-specific · ${place}`;
 }
 
-export function mapServices(answers, urgency) {
+function haversineMiles(lat1, lng1, lat2, lng2) {
+  const toRad = (value) => value * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 3958.8 * 2 * Math.asin(Math.sqrt(a));
+}
+
+export function formatMiles(miles) {
+  if (miles < 10) return `${miles.toFixed(1)} miles`;
+  return `${Math.round(miles)} miles`;
+}
+
+function clinicById(id) {
+  return clinics.find((clinic) => clinic.id === id);
+}
+
+export function distanceFromZip(zipCode, clinic) {
+  const origin = ZIP_CENTROIDS[normalizeZip(zipCode)];
+  if (!origin || !clinic) return null;
+  return haversineMiles(origin[0], origin[1], clinic.lat, clinic.lng);
+}
+
+export function clinicsByDistance(zipCode) {
+  return clinics.map((clinic) => ({ ...clinic, miles: distanceFromZip(zipCode, clinic) }))
+    .sort((a, b) => (a.miles ?? 9999) - (b.miles ?? 9999) || a.name.localeCompare(b.name));
+}
+
+export function selectPublished(service, zipCode) {
+  const zip = normalizeZip(zipCode);
+  if (!ZIP_CENTROIDS[zip]) return { supported: false, tier: "unsupported", records: [], zip };
+  const ranked = recordsFor(service).map((record) => {
+    const clinic = clinicById(record.clinicID);
+    const miles = distanceFromZip(zip, clinic);
+    return { ...record, miles, city: clinic.city, state: clinic.state };
+  }).filter((record) => record.miles != null)
+    .sort((a, b) => a.miles - b.miles || a.clinicName.localeCompare(b.clinicName));
+  if (!ranked.length) return { supported: true, tier: "none", records: [], zip };
+  const local = ranked.filter((record) => record.miles <= 25);
+  if (local.length) return { supported: true, tier: "local", records: local, zip };
+  const regional = ranked.filter((record) => record.miles <= 100);
+  if (regional.length) return { supported: true, tier: "regional", records: regional, zip };
+  return { supported: true, tier: "statewide", records: ranked, zip };
+}
+
+function toCents(value) {
+  const [whole, frac = ""] = String(value).split(".");
+  return Number(whole) * 100 + Number((frac + "00").slice(0, 2));
+}
+
+function fixedRangeLabel(records) {
+  if (records.length < 2 || records.some((record) => record.priceType !== "fixed")) return null;
+  const low = Math.min(...records.map((record) => toCents(record.lowPrice)));
+  const high = Math.max(...records.map((record) => toCents(record.highPrice)));
+  if (low === high) return formatMoney(fromCents(low));
+  return `${formatMoney(fromCents(low))}–${formatMoney(fromCents(high))}`;
+}
+
+function fromCents(cents) {
+  const dollars = Math.trunc(cents / 100);
+  const rem = Math.abs(cents % 100);
+  return rem === 0 ? String(dollars) : `${dollars}.${String(rem).padStart(2, "0")}`;
+}
+
+function placeLine(record) {
+  return {
+    id: record.id,
+    clinicID: record.clinicID,
+    clinicName: record.clinicName,
+    city: record.city,
+    miles: record.miles,
+    milesText: formatMiles(record.miles),
+    serviceName: record.serviceLabel,
+    priceLabel: priceLabel(record.lowPrice, record.highPrice, record.confidence),
+    amount: record.priceType === "fixed" ? record.lowPrice : null,
+    sourceName: record.sourceName,
+    sourceURL: record.sourceURL,
+    sourceTitle: record.sourceTitle,
+    dateText: dateText(record),
+    evidenceLabel: EVIDENCE_LABELS[record.evidence],
+    confidenceLabel: record.confidence,
+    notes: [record.notes, record.restrictions].filter(Boolean).join(" "),
+    geographicScope: scopeLabel(record)
+  };
+}
+
+const SERVICE_WHY = {
+  fecalExam: "Vomiting or diarrhea was reported, so a clinic may ask for a stool sample.",
+  bloodworkCBC: "Vomiting or diarrhea was reported. A clinic may discuss bloodwork. No stored Wisconsin clinic page lists a standalone CBC price.",
+  xray: "Limping was reported. A clinic may discuss an X-ray. No stored Wisconsin clinic page lists a standalone X-ray price.",
+  urinalysis: "Urinary changes were reported. No stored Wisconsin clinic page lists a urinalysis price.",
+  allergyTesting: "Itchy skin was reported. No stored Wisconsin clinic page lists an allergy-test price.",
+  earCleaning: "Ear discomfort was reported. Precision publishes an ear cleaning."
+};
+
+export function mapServices(answers, urgency, options = {}) {
   if (urgency === "emergency") return { expectedExam: "emergencyExam", possible: [] };
-  const symptoms = new Set(answers.symptoms);
+  const symptoms = new Set(answers.symptoms || []);
   const possible = [];
   if (symptoms.has("Vomiting") || symptoms.has("Diarrhea")) possible.push("fecalExam", "bloodworkCBC");
   if (symptoms.has("Limping")) possible.push("xray");
   if (symptoms.has("Urinary changes")) possible.push("urinalysis");
   if (symptoms.has("Itchy skin")) possible.push("allergyTesting");
   if (symptoms.has("Ear discomfort")) possible.push("earCleaning");
-  return { expectedExam: "medicalConcernExam", possible };
+  return { expectedExam: options.wellness ? "routineExam" : "medicalConcernExam", possible };
 }
 
 function serviceLine(service, supported, hideDollars) {
   const matches = hideDollars ? [] : recordsFor(service);
   if (!(supported && matches.length === 1)) {
     if (supported && matches.length > 1) {
-      return { id: service, name: SERVICE_LABELS[service], priceLabel: "Published prices are listed with their sources", confidenceLabel: "", detail: "Each clinic price is listed separately." };
+      return { id: service, name: SERVICE_LABELS[service], priceLabel: "Published prices are listed with their sources", confidenceLabel: "", detail: "Each clinic price is listed separately.", why: SERVICE_WHY[service] || "" };
     }
-    return { id: service, name: SERVICE_LABELS[service], priceLabel: COPY.serviceUnavailable, confidenceLabel: "", detail: "" };
+    return { id: service, name: SERVICE_LABELS[service], priceLabel: COPY.serviceUnavailable, confidenceLabel: "", detail: "", why: SERVICE_WHY[service] || "" };
   }
   const item = matches[0];
   return {
@@ -172,7 +239,8 @@ function serviceLine(service, supported, hideDollars) {
     name: item.serviceLabel,
     priceLabel: priceLabel(item.lowPrice, item.highPrice, item.confidence),
     confidenceLabel: item.confidence,
-    detail: `${EVIDENCE_LABELS[item.evidence]} · ${item.sourceName}`
+    detail: `${EVIDENCE_LABELS[item.evidence]} · ${item.sourceName}`,
+    why: SERVICE_WHY[service] || ""
   };
 }
 
@@ -193,102 +261,136 @@ function provenanceFromRecord(item, applied, unusedNote) {
 }
 
 const UNUSED = {
-  routineExam: "Wellness price. This check uses the medical-concern exam when a symptom was reported.",
-  officeVisit: "Published as an office visit. It is not labeled as a medical-concern exam, so it is not used as that fee.",
-  urgentExam: "Urgent-care walk-in fee. It is not used as a medical-concern or emergency exam price.",
-  newClientExam: "Promotional first-exam offer for new clients. It is not a general medical-concern fee.",
+  routineExam: "Wellness price. Shown as the starting price only for a mild, recent itch with otherwise normal answers.",
+  medicalConcernExam: "Medical-concern appointment. Used when a symptom is being checked, rather than a routine wellness visit.",
+  officeVisit: "Another clinic’s office visit. It is a different service, so it is not swapped in as the starting price.",
+  urgentExam: "Urgent-care walk-in fee for weekday afternoon walk-ins at that clinic. It is not added on top of the starting exam.",
+  newClientExam: "Promotional first exam for new clients, with checkout limits. It is not a general visit fee.",
   preoperativeBloodwork: "Dental pre-operative bloodwork. It is not a diagnostic CBC, so it is not shown as a bloodwork price.",
   earCleaning: "Shown only when ear discomfort is reported."
 };
 
-export function estimateCost(mapped, zipCode) {
-  const supported = isMadisonZip(zipCode);
-  const hideCatalog = !supported || mapped.expectedExam === "emergencyExam";
-  const applied = [mapped.expectedExam, ...mapped.possible];
-  const expectedRecords = hideCatalog ? [] : recordsFor(mapped.expectedExam);
-  const expectedLine = serviceLine(mapped.expectedExam, supported, hideCatalog);
-  let startingStatement = COPY.unavailable;
-  let expectedPriceLabel = null;
-  let expectedCaption = null;
-  if (!supported) {
-    startingStatement = COPY.unavailable;
-  } else if (mapped.expectedExam === "emergencyExam") {
-    startingStatement = `${COPY.serviceUnavailable}. Contact an emergency clinic for an estimate.`;
-  } else if (expectedRecords.length === 1) {
-    const item = expectedRecords[0];
-    expectedPriceLabel = formatMoney(item.lowPrice);
-    expectedCaption = `${item.serviceLabel} · ${item.clinicName || item.sourceName} · ${item.confidence} · ${EVIDENCE_LABELS[item.evidence]}`;
-    startingStatement = `${COPY.startingLead}${expectedPriceLabel}.`;
-  } else if (expectedRecords.length === 0) {
-    startingStatement = `${expectedLine.name}: ${COPY.serviceUnavailable}.`;
-  } else {
-    startingStatement = "Based on currently available Madison-area pricing, published initial-exam prices are listed with their sources.";
-  }
+function selectionView(selection) {
+  const prices = selection.records.map(placeLine);
+  const rangeLabel = fixedRangeLabel(selection.records);
+  return { tier: selection.tier, prices, rangeLabel, priceLabel: rangeLabel || prices[0]?.priceLabel || COPY.serviceUnavailable };
+}
 
-  const components = [];
-  if (!hideCatalog && expectedRecords.length === 1 && expectedRecords[0].lowPrice === expectedRecords[0].highPrice) {
-    components.push({ name: expectedRecords[0].serviceLabel, amount: expectedRecords[0].lowPrice });
-    for (const service of mapped.possible) {
-      const matches = recordsFor(service);
-      if (matches.length === 1 && matches[0].lowPrice === matches[0].highPrice) {
-        components.push({ name: matches[0].serviceLabel, amount: matches[0].lowPrice });
+export function estimateCost(mapped, zipCode) {
+  const zip = normalizeZip(zipCode);
+  const supported = Boolean(ZIP_CENTROIDS[zip]);
+  const hideDollars = !supported;
+  const expectedSelection = hideDollars ? { supported: false, tier: "unsupported", records: [], zip } : selectPublished(mapped.expectedExam, zip);
+  const expected = selectionView(expectedSelection);
+  const farther = expected.tier === "regional" || expected.tier === "statewide";
+  const regionBanner = !supported ? COPY.unavailable : expected.tier === "local" ? `${COPY.localLead}${zip}` : expected.tier === "none" ? `${COPY.localLead}${zip}` : COPY.fartherLead;
+  let startingStatement = COPY.unavailable;
+  if (!supported) startingStatement = COPY.unavailable;
+  else if (expected.prices.length === 0) startingStatement = `${SERVICE_LABELS[mapped.expectedExam]}: ${COPY.serviceUnavailable}.`;
+  else if (expected.rangeLabel) startingStatement = expected.tier === "local"
+    ? `Published nearby range: ${expected.rangeLabel}. Each amount is a clinic-published price.`
+    : `Published range from these clinics: ${expected.rangeLabel}. Each amount is a clinic-published price.`;
+  else startingStatement = `Closest published price available: ${expected.prices[0].serviceName} ${expected.prices[0].priceLabel}.`;
+
+  const possibleLines = (mapped.possible || []).map((service) => {
+    const selection = hideDollars ? { records: [], tier: "unsupported" } : selectPublished(service, zip);
+    const view = selectionView(selection);
+    return { id: service, name: SERVICE_LABELS[service], why: SERVICE_WHY[service] || "", priceLabel: view.prices.length ? view.priceLabel : COPY.serviceUnavailable, prices: view.prices, tier: view.tier };
+  });
+
+  const sameClinic = [];
+  if (!hideDollars) {
+    for (const exam of expected.prices) {
+      if (!exam.amount) continue;
+      const addons = [];
+      for (const line of possibleLines) {
+        const match = line.prices.find((price) => price.clinicID === exam.clinicID && price.amount);
+        if (match) addons.push(match);
       }
+      if (!addons.length) continue;
+      const parts = [exam, ...addons];
+      sameClinic.push({ clinicName: exam.clinicName, amounts: parts.map((part) => part.amount), names: parts.map((part) => part.serviceName) });
     }
   }
-  const usedComponents = components.length > 1 ? components : [];
-  const potentialStatement = usedComponents.length > 1
-    ? `${COPY.potentialLead}: ${formatMoney(canonicalSum(usedComponents.map((item) => item.amount)))}. Includes only ${usedComponents.map((item) => `${item.name} (${formatMoney(item.amount)})`).join(" and ")}. This is not a prediction that each listed service will be performed.`
+  const potentialStatement = sameClinic.length
+    ? sameClinic.map((item) => `${COPY.potentialLead} at ${item.clinicName}: ${formatMoney(canonicalSum(item.amounts))}. Includes only ${item.names.map((name, index) => `${name} (${formatMoney(item.amounts[index])})`).join(" and ")}. This is not a prediction that each listed service will be performed.`).join(" ")
     : null;
 
-  const provenance = applied.map((service) => {
-    const matches = hideCatalog ? [] : recordsFor(service);
-    if (matches.length === 1) return provenanceFromRecord(matches[0], true, "");
-    return { id: `missing-${service}`, service: SERVICE_LABELS[service], price: COPY.serviceUnavailable, sourceName: "", sourceURL: "", geographicScope: "", dateText: "", evidenceLabel: "", confidenceLabel: "", applied: true, notes: "" };
-  });
-  if (!hideCatalog) {
-    const appliedSet = new Set(applied);
-    const explanatory = new Set(["routineExam", "officeVisit", "urgentExam", "newClientExam", "preoperativeBloodwork"]);
-    for (const item of pricingRecords) {
-      if (!appliedSet.has(item.service) && explanatory.has(item.service)) {
-        provenance.push(provenanceFromRecord(item, false, UNUSED[item.service] || "Not part of the services selected for this check."));
+  const provenance = [];
+  for (const price of expected.prices) provenance.push({ ...price, service: price.serviceName, price: price.priceLabel, applied: true });
+  for (const line of possibleLines) {
+    if (!line.prices.length) provenance.push({ id: `missing-${line.id}`, service: line.name, price: COPY.serviceUnavailable, sourceName: "", sourceURL: "", geographicScope: "", dateText: "", evidenceLabel: "", confidenceLabel: "", applied: true, notes: line.why });
+    for (const price of line.prices) provenance.push({ ...price, service: price.serviceName, price: price.priceLabel, applied: true });
+  }
+  const comparison = [];
+  if (!hideDollars && mapped.expectedExam !== "emergencyExam") {
+    for (const service of EXAMS) {
+      if (service === mapped.expectedExam || service === "emergencyExam") continue;
+      const view = selectionView(selectPublished(service, zip));
+      for (const price of view.prices) {
+        comparison.push({ ...price, name: price.serviceName, why: UNUSED[service] || "A different published service.", tier: view.tier });
+        provenance.push({ ...price, service: price.serviceName, price: price.priceLabel, applied: false, notes: `${price.notes} ${UNUSED[service] || ""}`.trim() });
       }
     }
   }
 
-  const clinicNotes = clinics.map((clinic) => ({ id: clinic.id, clinicName: clinic.name, detail: clinicDetail(clinic, mapped.expectedExam, hideCatalog) }));
+  const clinicNotes = clinicsByDistance(zip).map((clinic) => ({
+    id: clinic.id,
+    clinicName: clinic.name,
+    city: clinic.city,
+    miles: clinic.miles,
+    milesText: clinic.miles == null ? "" : formatMiles(clinic.miles),
+    careType: clinic.careType,
+    phone: clinic.phone,
+    website: clinic.website,
+    address: clinic.address,
+    hours: clinic.hours,
+    detail: clinicDetail(clinic, mapped.expectedExam, hideDollars)
+  }));
+
   const estimate = {
-    zipCode: normalizeZip(zipCode),
+    zipCode: zip,
     isSupportedRegion: supported,
+    tier: expected.tier,
+    closerNote: farther ? COPY.closerNote : "",
     mapped,
-    regionBanner: supported ? COPY.madisonBanner : COPY.unavailable,
+    regionBanner,
     startingStatement,
-    expectedPriceLabel,
-    expectedCaption,
-    possibleLines: mapped.possible.map((service) => serviceLine(service, supported, hideCatalog)),
+    expectedPriceLabel: expected.prices.length ? expected.priceLabel : null,
+    expectedCaption: expected.prices.length === 1 ? `${expected.prices[0].serviceName} · ${expected.prices[0].clinicName} · ${expected.prices[0].city}, WI — ${expected.prices[0].milesText} away` : "",
+    priceLines: expected.prices,
+    possibleLines,
+    comparison,
     clinicNotes,
     provenance,
     potentialStatement,
-    potentialComponentAmounts: usedComponents.map((item) => item.amount),
+    potentialComponentAmounts: sameClinic.flatMap((item) => item.amounts),
     additionalDisclaimer: COPY.additional
   };
   estimate.summaryText = summaryText(estimate);
   return estimate;
 }
 
-function clinicDetail(clinic, expected, hideCatalog) {
-  if (hideCatalog) return COPY.clinicUnavailable;
+function clinicDetail(clinic, expected, hideDollars) {
+  if (hideDollars) return COPY.clinicUnavailable;
   const exact = recordsFor(expected, clinic.id)[0];
+  if (expected === "emergencyExam" && !exact) return COPY.clinicUnavailable;
   if (exact) return `${priceLabel(exact.lowPrice, exact.highPrice, exact.confidence)} · ${exact.serviceLabel}`;
   const other = pricingRecords.find((item) => item.clinicID === clinic.id && EXAMS.has(item.service) && item.service !== expected);
-  if (expected === "emergencyExam" || !other) return COPY.clinicUnavailable;
+  if (!other) return COPY.clinicUnavailable;
   return `${COPY.clinicUnavailable} This clinic publishes ${priceLabel(other.lowPrice, other.highPrice, other.confidence)} for ${other.serviceLabel.toLowerCase()}, which is a different service.`;
 }
 
 function summaryText(estimate) {
   const lines = [estimate.regionBanner, estimate.startingStatement];
+  if (estimate.closerNote) lines.push(estimate.closerNote);
   if (estimate.expectedPriceLabel) lines.push(estimate.expectedPriceLabel);
   if (estimate.expectedCaption) lines.push(estimate.expectedCaption);
-  for (const line of estimate.possibleLines) lines.push(`${line.name}: ${line.priceLabel}`);
+  for (const price of estimate.priceLines || []) lines.push(`${price.clinicName}, ${price.city}, WI — ${price.milesText} away: ${price.serviceName} ${price.priceLabel}`);
+  for (const line of estimate.possibleLines) {
+    lines.push(`${line.name}: ${line.priceLabel}`);
+    for (const price of line.prices || []) lines.push(`${price.clinicName}, ${price.city}, WI — ${price.milesText} away: ${price.priceLabel}`);
+  }
   if (estimate.potentialStatement) lines.push(estimate.potentialStatement);
   lines.push(estimate.additionalDisclaimer);
   for (const note of estimate.clinicNotes) lines.push(`${note.clinicName}: ${note.detail}`);
@@ -338,35 +440,123 @@ export function detailQuestion(symptoms) {
   return "How would you describe the symptoms?";
 }
 
+const TOPIC = {
+  Vomiting: "Whether the vomiting is from something eaten, stomach upset, or needs a hydration check",
+  Diarrhea: "Whether a stool sample or a diet change is worth discussing",
+  Limping: "Whether the limp is a strain, pain, or something that needs an X-ray",
+  "Not eating": "How long a reduced appetite can wait, and what to watch overnight",
+  "Low energy": "Whether the low energy needs an exam today",
+  "Itchy skin": "Allergies, parasites, or skin irritation",
+  "Ear discomfort": "Whether the ears need a cleaning or an infection check",
+  Coughing: "Whether the cough is airway irritation that is getting worse",
+  "Eye irritation": "A scratch, discharge, or irritation in the eye",
+  "Urinary changes": "Discomfort while urinating, and signs that would need a same-day visit"
+};
+
+const DURATION_TEXT = {
+  recent: "It started today.",
+  yesterday: "It started 1–2 days ago.",
+  longer: "It has been going on for 3 or more days."
+};
+const ENERGY_TEXT = {
+  normal: "Energy is like usual.",
+  reduced: "Energy is quieter than usual.",
+  severe: "Energy is very weak or collapsing."
+};
+const INTAKE_TEXT = {
+  normal: "Eating and drinking are normal.",
+  reduced: "Eating or drinking is reduced.",
+  unable: "They cannot keep water down."
+};
+const DETAIL_TEXT = {
+  mild: "The symptom is mild or occasional.",
+  repeated: "The symptom is repeated or worsening.",
+  redFlag: "You reported blood or severe pain."
+};
+
+function joinAnd(items) {
+  if (items.length <= 1) return items[0] || "";
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
+}
+
+export function visitReading(pet, answers, urgency) {
+  const name = (pet.name || "").trim() || "Your dog";
+  const age = Number(pet.age);
+  const symptoms = answers.symptoms || [];
+  const notes = (answers.notes || "").trim();
+  const factors = [];
+  const raised = [];
+  if (age < 1) {
+    factors.push({ tone: "up", text: `${name} is under 1 year old, so age raised the level.` });
+    raised.push("this dog is under a year old");
+  } else if (age >= 10) {
+    factors.push({ tone: "up", text: `Age ${age} is 10 or older, so age raised the level.` });
+    raised.push("this dog is 10 or older");
+  } else {
+    factors.push({ tone: "same", text: `Age ${age} did not raise the level on its own.` });
+  }
+  factors.push({ tone: "same", text: symptoms.length ? `Reported: ${symptoms.join(", ")}.` : "No symptom chip was selected." });
+  if (answers.duration) factors.push({ tone: answers.duration === "longer" ? "up" : "same", text: DURATION_TEXT[answers.duration] });
+  if (answers.energy) factors.push({ tone: answers.energy === "reduced" ? "up" : "same", text: ENERGY_TEXT[answers.energy] });
+  if (answers.intake) factors.push({ tone: answers.intake === "reduced" ? "up" : "same", text: INTAKE_TEXT[answers.intake] });
+  if (answers.detail) factors.push({ tone: answers.detail === "repeated" ? "up" : "same", text: DETAIL_TEXT[answers.detail] });
+  if (answers.duration === "longer") raised.push("it has lasted 3 or more days");
+  if (answers.energy === "reduced") raised.push("energy is lower than usual");
+  if (answers.intake === "reduced") raised.push("eating or drinking is reduced");
+  if (answers.detail === "repeated") raised.push("the symptom is repeated or worsening");
+  if (notes) {
+    factors.push({ tone: "up", text: "Written notes are saved for the vet and raised this check above the lowest level." });
+    raised.push("you added written notes");
+  } else {
+    factors.push({ tone: "same", text: "No written notes were added." });
+  }
+  for (const symptom of ["Eye irritation", "Urinary changes", "Not eating", "Low energy"]) {
+    if (symptoms.includes(symptom)) raised.push(symptom.toLowerCase());
+  }
+  const info = urgencyInfo(urgency);
+  const sentences = [`${name} is ${age} ${age === 1 ? "year" : "years"} old and ${pet.weight} lb.`];
+  if (urgency === "monitor") {
+    sentences.push("The answers describe mild, recent itching, usual energy, normal eating and drinking, and no written notes.");
+    sentences.push("That is the lowest level on this scale. The starting price uses the published routine exam. A medical-concern appointment is a different published service and is listed below, not added on.");
+  } else if (raised.length) {
+    sentences.push(`This is above “keep a close eye” because ${joinAnd(raised)}.`);
+    sentences.push(`That places the check at level ${info.level}, ${info.title.toLowerCase()}. The starting price is the published medical-concern appointment. Other published exam prices are listed separately because they are different services.`);
+  } else {
+    sentences.push("A symptom was reported, and the answers did not match the mild-itch pattern, so this is not the lowest level.");
+    sentences.push(`That places the check at level ${info.level}, ${info.title.toLowerCase()}. The starting price is the published medical-concern appointment.`);
+  }
+  const watch = [
+    "Trouble breathing, collapse, a seizure, or bleeding that will not stop",
+    "Blood, severe pain, or an inability to keep water down"
+  ];
+  if (symptoms.includes("Vomiting") || symptoms.includes("Diarrhea")) watch.push("Vomiting or diarrhea that becomes constant, or tiredness that gets worse");
+  if (symptoms.includes("Urinary changes")) watch.push("Straining without passing urine");
+  return { paragraph: sentences.join(" "), factors, watch };
+}
+
 export function evaluate(pet, answers, now = new Date()) {
-  if (answers.energy === "severe" || answers.detail === "redFlag" || answers.intake === "unable") {
+  const notes = (answers.notes || "").trim();
+  if (answers.energy === "severe" || answers.detail === "redFlag" || answers.intake === "unable" || /\b(blood|poison|poisoned|collapse|collapsed|seizure|unconscious|not breathing|can't breathe|cannot breathe|blue gums)\b/i.test(notes)) {
     return emergencyPlan(pet, answers, "You reported a potentially serious sign. Contact an emergency veterinarian for immediate guidance.", now);
   }
   const symptoms = answers.symptoms || [];
-  const notes = (answers.notes || "").trim();
   const onlyMildSkin = symptoms.length === 1 && symptoms[0] === "Itchy skin" && notes === "";
   const age = Number(pet.age);
   const mild = onlyMildSkin && answers.duration === "recent" && answers.energy === "normal" && answers.intake === "normal" && answers.detail === "mild" && age >= 1 && age < 10;
   const concerning = answers.duration === "longer" || answers.energy === "reduced" || answers.intake === "reduced" || answers.detail === "repeated" || age < 1 || age >= 10 || notes !== "" || ["Eye irritation", "Urinary changes", "Not eating", "Low energy"].some((item) => symptoms.includes(item));
   const urgency = mild ? "monitor" : concerning ? "soon" : "fewDays";
-  const digestive = symptoms.includes("Vomiting") || symptoms.includes("Diarrhea");
-  const skin = symptoms.includes("Itchy skin") || symptoms.includes("Ear discomfort");
-  const topics = digestive
-    ? ["Digestive irritation", "Something eaten or swallowed", "Hydration assessment"]
-    : skin
-      ? ["Skin or ear irritation", "Allergies or parasites", "Whether an exam or sample is needed"]
-      : ["A physical exam to understand the symptoms", "Whether testing or treatment is needed"];
-  const reason = urgency === "monitor"
-    ? "This demo scenario shows mild, recent itching with otherwise normal behavior. A veterinarian should confirm whether monitoring is appropriate."
-    : "Your answers suggest arranging veterinary advice. A clinician can determine the right timing and tests for your dog.";
-  return plan(pet, answers, urgency, reason, topics, now);
+  const topics = symptoms.map((symptom) => TOPIC[symptom]).filter(Boolean);
+  if (!topics.length) topics.push("A physical exam to understand the symptoms", "Whether testing or treatment is needed");
+  const reading = visitReading(pet, answers, urgency);
+  return plan(pet, answers, urgency, reading.paragraph, topics.slice(0, 5), now, { wellness: mild, factors: reading.factors, watch: reading.watch });
 }
 
 export function emergencyPlan(pet, answers, reason, now = new Date()) {
   return plan(pet, answers || emptyAnswers(), "emergency", reason, [], now);
 }
 
-function plan(pet, answers, urgency, reason, topics, now) {
+function plan(pet, answers, urgency, reason, topics, now, extra = {}) {
   const createdAt = now instanceof Date ? now.toISOString() : new Date(now).toISOString();
   return {
     createdAt,
@@ -374,8 +564,10 @@ function plan(pet, answers, urgency, reason, topics, now) {
     answers,
     urgency,
     reason,
+    factors: extra.factors || [],
+    watch: extra.watch || [],
     topics,
-    estimate: estimateCost(mapServices(answers, urgency), pet.zipCode),
+    estimate: estimateCost(mapServices(answers, urgency, { wellness: extra.wellness }), pet.zipCode),
     booking: null
   };
 }
@@ -421,6 +613,8 @@ export function summaryDocument(carePlan) {
     "All levels:",
     ...urgencyScale().map((item) => `${item.key === carePlan.urgency ? ">" : " "} Level ${item.level}: ${item.title} — ${item.timing}`),
     carePlan.reason,
+    ...(carePlan.factors || []).map((factor) => `- ${factor.text}`),
+    ...(carePlan.watch || []).length ? ["Watch for:", ...(carePlan.watch || []).map((item) => `- ${item}`)] : [],
     "",
     `Discussion topics (not diagnoses): ${carePlan.topics.join("; ") || "None"}`,
     carePlan.estimate.summaryText,
@@ -429,6 +623,6 @@ export function summaryDocument(carePlan) {
       ? `DEMO APPOINTMENT: ${carePlan.booking.clinicName}\n${new Date(carePlan.booking.when).toLocaleString()}\n${carePlan.booking.address}\nNo appointment has been reserved or sent to a clinic.`
       : "No appointment reserved.",
     "",
-    "Urgency rules are a demonstration, not clinical AI or a diagnosis. Appointment times are sample openings and are not reserved. Dollar amounts are included only when a published source is stored with this plan. Contact a veterinarian for medical advice."
+    "This reading uses the answers you entered. It is not a diagnosis. Appointment times are sample openings and are not reserved. Dollar amounts are included only when a published source is stored with this plan. Contact a veterinarian for medical advice."
   ].join("\n");
 }
