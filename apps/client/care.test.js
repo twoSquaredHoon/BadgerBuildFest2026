@@ -12,10 +12,18 @@ test("mild, recent itching with normal behavior is level 1", () => {
   assert.equal(evaluate(dog, mild).urgency, "monitor");
 });
 
-test("concerning answers are level 3 and in-between answers are level 2", () => {
+test("worse follow-up answers are level 3 and a mild illness is not", () => {
   assert.equal(evaluate(dog, { ...mild, energy: "reduced" }).urgency, "soon");
-  assert.equal(evaluate({ ...dog, age: 12 }, mild).urgency, "soon");
+  assert.equal(evaluate(dog, { ...mild, duration: "longer" }).urgency, "soon");
+  assert.equal(evaluate(dog, { ...mild, intake: "reduced" }).urgency, "soon");
+  assert.equal(evaluate(dog, { ...mild, detail: "repeated" }).urgency, "soon");
+  assert.equal(evaluate({ ...dog, age: 12 }, mild).urgency, "fewDays");
+  assert.equal(evaluate({ ...dog, age: 0.5 }, mild).urgency, "fewDays");
   assert.equal(evaluate(dog, { ...mild, symptoms: ["Vomiting"] }).urgency, "fewDays");
+  assert.equal(evaluate(dog, { ...mild, symptoms: ["Not eating"] }).urgency, "fewDays");
+  assert.equal(evaluate(dog, { ...mild, symptoms: ["Low energy"] }).urgency, "fewDays");
+  assert.equal(evaluate(dog, { ...mild, symptoms: ["Eye irritation"] }).urgency, "fewDays");
+  assert.equal(evaluate(dog, { ...mild, notes: "a little itchy" }).urgency, "fewDays");
 });
 
 test("red flags go straight to emergency", () => {

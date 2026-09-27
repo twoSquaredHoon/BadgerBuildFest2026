@@ -569,11 +569,11 @@ export function evaluate(pet, answers, now = new Date(), options = {}) {
   }
   const symptoms = answers.symptoms || [];
   const notes = (answers.notes || "").trim();
-  const onlyMildSkin = symptoms.length === 1 && symptoms[0] === "Itchy skin" && notes === "";
   const age = Number(pet.age);
-  const mild = onlyMildSkin && answers.duration === "recent" && answers.energy === "normal" && answers.intake === "normal" && answers.detail === "mild" && age >= 1 && age < 10;
-  const concerning = answers.duration === "longer" || answers.energy === "reduced" || answers.intake === "reduced" || answers.detail === "repeated" || age < 1 || age >= 10 || notes !== "" || ["Eye irritation", "Urinary changes", "Not eating", "Low energy"].some((item) => symptoms.includes(item));
-  const urgency = mild ? "monitor" : concerning ? "soon" : "fewDays";
+  const calmAnswers = answers.energy === "normal" && answers.intake === "normal" && answers.detail === "mild" && answers.duration !== "longer";
+  const onlyMildSkin = symptoms.length === 1 && symptoms[0] === "Itchy skin" && notes === "" && calmAnswers && answers.duration === "recent" && age >= 1 && age < 10;
+  const worseAnswers = answers.duration === "longer" || answers.energy === "reduced" || answers.intake === "reduced" || answers.detail === "repeated";
+  const urgency = worseAnswers ? "soon" : onlyMildSkin ? "monitor" : "fewDays";
   const digestive = symptoms.includes("Vomiting") || symptoms.includes("Diarrhea");
   const skin = symptoms.includes("Itchy skin") || symptoms.includes("Ear discomfort");
   const topics = digestive
