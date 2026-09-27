@@ -156,3 +156,11 @@ summary { cursor: pointer; font-weight: 700; color: var(--accent); }
 .empty { background: var(--surface); border: 1px dashed var(--border); border-radius: 18px; padding: 40px 24px; text-align: center; display: flex; flex-direction: column; gap: 8px; }
 .empty-title { font-size: 20px; font-weight: 700; }
 .empty p { color: var(--muted); font-size: 15px; }
+
+/* "May relate to" tags on My plan */
+.related { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.related .eyebrow { margin-right: 2px; }
+.tags { display: contents; }
+.cost-details summary { list-style: none; cursor: pointer; }
+.cost-details summary::-webkit-details-marker { display: none; }
+.cost-details .link { color: var(--accent); font-weight: 600; }

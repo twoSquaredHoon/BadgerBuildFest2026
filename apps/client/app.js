@@ -248,10 +248,11 @@ function planView() {
           <p><strong>${esc(displayName(plan.pet))}</strong> <span class="muted">· ${esc(plan.pet.age)} yrs · ${esc(plan.pet.weight)} lb</span></p>
           <p>${esc(plan.answers.symptoms.join(", ") || plan.answers.notes)}</p>
         </div>
+        ${relatedMarkup(plan.samples)}
       </article>
       <article class="card compact" id="costCard">
         <p class="eyebrow">Estimated cost</p>
-        <p class="muted">Clinic prices will show here once vets join.</p>
+        ${costMarkup(plan.estimate)}
       </article>
       <article class="card compact aid">
         <div class="row"><p class="eyebrow">Help paying</p><a class="small" href="#resources" data-go="resources">All options</a></div>
@@ -264,6 +265,32 @@ function planView() {
 }
 
 
+
+/** Published Wisconsin prices closest to the owner's ZIP (care.js estimateCost). */
+function costMarkup(estimate) {
+  if (!estimate) return `<p class="muted">Start a new check to see prices.</p>`;
+  const lines = estimate.priceLines || [];
+  if (!estimate.expectedPriceLabel || !lines.length) {
+    return `<p class="muted">${esc(estimate.isSupportedRegion ? estimate.startingStatement : estimate.regionBanner)}</p>`;
+  }
+  const miles = (line) => line.milesText.replace(" miles", " mi");
+  const caption = lines.length === 1
+    ? `${lines[0].clinicName} · ${miles(lines[0])}`
+    : `${lines.length} clinics · ${miles(lines[0]).replace(" mi", "")}–${miles(lines[lines.length - 1])}`;
+  return `
+    <details id="howWeEstimated" class="cost-details">
+      <summary class="cost-row"><span class="price">${esc(estimate.expectedPriceLabel)}</span><span class="note">${esc(caption)} · <span class="link">Sources</span></span></summary>
+      <div class="provenance">${lines.map((line) => `<p><a href="${esc(line.sourceURL)}">${esc(line.clinicName)}</a> · ${esc(line.milesText)} · ${esc(line.priceLabel)}</p>`).join("")}</div>
+    </details>`;
+}
+
+/** "May relate to" tags from the health-record match (care.js sampleLabels). */
+function relatedMarkup(samples) {
+  const area = samples?.areaPhrase ? samples.areaPhrase.replace(/^an? /, "") : "";
+  const items = [...(area ? [area.charAt(0).toUpperCase() + area.slice(1)] : []), ...(samples?.conditions || [])];
+  if (!items.length) return "";
+  return `<div class="related" id="sampleLabels"><p class="eyebrow">May relate to</p><div class="tags">${items.map((name) => `<span class="badge">${esc(name)}</span>`).join("")}</div></div>`;
+}
 
 function booking() {
   if (!state.plan || state.plan.urgency === "emergency") return emergencyView();
