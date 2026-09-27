@@ -22,7 +22,48 @@ Dog owners see how urgent it is, what it costs nearby, and who can help pay, bef
   <a href="https://inflation-players-fellowship-jane.trycloudflare.com/owner/#home">https://inflation-players-fellowship-jane.trycloudflare.com/owner/#home</a>
 </p>
 
-## 1. Challenges
+## 1. The Problem
+
+### 1.1. More than half of pet owners walk away from care
+
+```mermaid
+xychart-beta horizontal
+    title "U.S. pet owners and the cost of care (%)"
+    x-axis ["Skipped or declined needed care", "Of those: cost was the reason", "Declined over cost, never offered a cheaper option", "Pet got worse or died after skipping care"]
+    y-axis "Percent" 0 --> 100
+    bar [52, 71, 73, 14]
+```
+
+- **52%** of U.S. pet owners skipped or declined vet care their pet needed in the past year.
+- **71%** of them say cost was the reason.
+- **73%** of those who declined over cost were never offered a lower-cost option.
+- **14%** say their pet got worse or died after skipping care.
+
+*Most owners leave with a bill they don't understand, and no one tells them help exists.*
+
+### 1.2. Vets feel it too, and the cost talk comes too late
+
+```mermaid
+xychart-beta horizontal
+    title "When vets bring up the client's finances (%)"
+    x-axis ["Before recommending care", "After recommending care", "Only if the client asks or declines"]
+    y-axis "Percent of vets" 0 --> 100
+    bar [17, 49, 34]
+```
+
+```mermaid
+xychart-beta horizontal
+    title "What vets say (%)"
+    x-axis ["Clients' finances limit the care they can give", "Declined care hurts their team", "Never had training on talking about cost"]
+    y-axis "Percent of vets" 0 --> 100
+    bar [94, 76, 48]
+```
+
+Only **17%** of vets raise cost before recommending care, so the budget usually comes up after the plan is set.
+
+<sub>Sources: Gallup, [52% of U.S. Pet Owners Skipped or Declined Veterinary Care](https://news.gallup.com/poll/659057/pet-owners-skipped-declined-veterinary-care.aspx) (2,498 owners, Nov 2024–Jan 2025) and [Veterinarians Say Cost Is the Main Driver of Declined Care](https://news.gallup.com/poll/700115/veterinarians-say-cost-main-driver-declined-care.aspx) (933 vets, Sep–Oct 2025); PetSmart Charities press releases, [Apr 2025](https://petsmartcharities.org/press-releases/new-study-finds-more-than-half-of-u-s-pet-parents-skip-or-decline-needed-veterinary-care) and [Jan 2026](https://petsmartcharities.org/press-releases/cost-of-care-continues-to-strain-veterinary-care-access-new-study-finds).</sub>
+
+### 1.3. Challenges We're Entering
 
 - **Cost-of-Care Conversation** — turns sticker shock into a shared decision: the vet sees the owner's budget and aid plan before recommending care.
 - **Open Venture** — 52% of U.S. pet owners skip needed care, and nothing else connects the owner, the vet, and financial aid.
@@ -122,27 +163,48 @@ sequenceDiagram
 
 ---
 
-## 3. Run It
+## 3. Project Structure
 
-```bash
-cd apps/vet
-npm install
-npm run dev        # http://localhost:8081 → Pet owner or Vet
+```text
+BadgerBuildFest2026/
+|-- apps/
+|   |-- vet/                             # Vet app (Vite + React + TypeScript), also serves the owner side
+|   |   |-- vite.config.ts               # Port 8081, /owner/ mount, /api/prices, tunnel hosts
+|   |   |-- .env.example                 # Supabase URL + publishable key
+|   |   `-- src/
+|   |       |-- App.tsx                  # Start screen, sign-in gate, routes
+|   |       |-- store/                   # Auth.tsx, VetStore.tsx (data + realtime), Side.tsx
+|   |       |-- pages/                   # Requests, Appointments, Patients, Chat, details, sign-in, setup
+|   |       |-- components/              # Tab layout, toast, shared UI, icons
+|   |       |-- lib/                     # Supabase client, dates, .ics calendar export
+|   |       `-- types/index.ts           # Dog, Owner, BookingRequest, Patient, Message
+|   `-- client/                          # Owner site (PawPlan, static HTML/CSS/JS)
+|       |-- app.js                       # Screens, state, booking flow
+|       |-- care.js                      # Urgency rules, related conditions, cost estimate, assistance
+|       |-- backend.js                   # Supabase REST calls: open slots, request, status, cancel
+|       |-- live-prices.mjs              # Reads clinic pages, optional Gemini matching
+|       |-- server.mjs                   # Standalone server for the owner site on :8787
+|       |-- pricing-data.js              # Wisconsin clinics and published prices
+|       |-- pet-symptoms.js              # Owner observations from pet_health_symptoms.xlsx
+|       |-- disease-cases.js             # Disease records from dog_disease_prediction.xlsx
+|       |-- zip-centroids.js             # Wisconsin ZIP coordinates
+|       |-- aid-orgs.js                  # Financial aid programs (from pet_financial_aid_orgs_expanded.xlsx)
+|       |-- aid.js                       # Matches owners to aid; clinic warnings; document checklist
+|       |-- zip-counties.js              # Wisconsin ZIP → county
+|       `-- *.test.js                    # care.test.js, aid.test.js, live-prices.test.js
+|-- supabase/migrations/
+|   |-- 0001_init.sql                    # Tables, RLS, guard triggers, realtime
+|   |-- 0002_open_slots.sql              # Open appointment times, no double-booking
+|   `-- 0003_booking_requests.sql        # request_booking function for owners
+|-- data/                                # Source spreadsheets
+`-- docs/                                # Architecture, setup, hosting, data, PRDs, screenshots, demo QR
 ```
 
-First-time setup (Supabase migrations, anonymous sign-ins, `.env`): [docs/backend-setup.md](docs/backend-setup.md). Sharing to phones: [docs/running-and-hosting.md](docs/running-and-hosting.md).
-
-## 4. Tests
-
-```bash
-cd apps/client && node --test care.test.js aid.test.js live-prices.test.js
-```
-
-## 5. Docs
+## 4. Docs
 
 [Architecture](docs/architecture.md) · [Backend setup](docs/backend-setup.md) · [Running and hosting](docs/running-and-hosting.md) · [Data](docs/data.md) · [PRD: owner app](docs/prd-client.md) · [PRD: vet app](docs/prd-vet.md)
 
-## 6. Team
+## 5. Team
 
 Built at Badger BuildFest 2026 by:
 
