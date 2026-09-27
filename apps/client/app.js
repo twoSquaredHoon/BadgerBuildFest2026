@@ -139,10 +139,8 @@ function onClick(event) {
     render();
     return;
   }
-  if (action === "create-plan" && answersComplete()) {
-    state.plan = evaluate(normalizedPet(), state.answers);
-    save();
-    show("plan");
+  if (action === "create-plan" && answersComplete() && !state.checking) {
+    beginPlan();
     return;
   }
   if (action === "book") { show("booking"); return; }
@@ -165,6 +163,9 @@ function home() {
 
 
 function check() {
+  if (state.checking) {
+    return `<section class="stack"><h1>Reading clinic websites</h1><p class="muted">Each dollar has to appear on the clinic’s page. If it does not, that price stays unavailable.</p></section>`;
+  }
   const stepIndex = ["pet", "emergency", "symptoms", "questions"].indexOf(state.step);
   const steps = `<div class="steps" aria-label="Step ${stepIndex + 1} of 4">${[0, 1, 2, 3].map((index) => `<i class="${index <= stepIndex ? "on" : ""}"></i>`).join("")}</div>`;
   const body = { pet: petStep, emergency: emergencyStep, symptoms: symptomStep, questions: questionStep }[state.step]();
@@ -269,15 +270,17 @@ function planView() {
 /** Published Wisconsin prices closest to the owner's ZIP (care.js estimateCost). */
 function costMarkup(estimate) {
   if (!estimate) return `<p class="muted">Start a new check to see prices.</p>`;
+  const note = estimate.liveNote ? `<p class="note">${esc(estimate.liveNote)}</p>` : "";
   const lines = estimate.priceLines || [];
   if (!estimate.expectedPriceLabel || !lines.length) {
-    return `<p class="muted">${esc(estimate.isSupportedRegion ? estimate.startingStatement : estimate.regionBanner)}</p>`;
+    return `${note}<p class="muted">${esc(estimate.isSupportedRegion ? estimate.startingStatement : estimate.regionBanner)}</p>`;
   }
   const miles = (line) => line.milesText.replace(" miles", " mi");
   const caption = lines.length === 1
     ? `${lines[0].clinicName} · ${miles(lines[0])}`
     : `${lines.length} clinics · ${miles(lines[0]).replace(" mi", "")}–${miles(lines[lines.length - 1])}`;
   return `
+    ${note}
     <details id="howWeEstimated" class="cost-details">
       <summary class="cost-row"><span class="price">${esc(estimate.expectedPriceLabel)}</span><span class="note">${esc(caption)} · <span class="link">Sources</span></span></summary>
       <div class="provenance">${lines.map((line) => `<p><a href="${esc(line.sourceURL)}">${esc(line.clinicName)}</a> · ${esc(line.milesText)} · ${esc(line.priceLabel)}</p>`).join("")}</div>
@@ -338,6 +341,25 @@ function resources() {
       </article>
       <button class="ghost" data-action="clear">Delete saved data</button>
     </section>`;
+}
+
+async function beginPlan() {
+  state.checking = true;
+  render();
+  let result = { ok: false, records: [], note: "Clinic websites could not be read just now, so no price is shown." };
+  try {
+    const response = await fetch("/api/prices", { method: "POST" });
+    if (response.ok) result = await response.json();
+  } catch {
+    result = { ok: false, records: [], note: "Clinic websites could not be read just now, so no price is shown." };
+  }
+  state.checking = false;
+  const plan = evaluate(normalizedPet(), state.answers, new Date(), { records: result.ok ? result.records : [] });
+  plan.estimate.liveNote = result.note || "";
+  if (plan.estimate.liveNote) plan.estimate.summaryText = `${plan.estimate.summaryText}\n${plan.estimate.liveNote}`;
+  state.plan = plan;
+  save();
+  show("plan");
 }
 
 function finishEmergency(reason) {

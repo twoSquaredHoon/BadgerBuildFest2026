@@ -3,11 +3,13 @@ node_modules/
 dist/
 
 # Environment files
-# .env IS committed so teammates can run the app right after cloning.
+# apps/vet/.env IS committed so teammates can run the app right after cloning.
 # It must only hold public values (Supabase URL + publishable key).
 # Put anything secret (service_role key, AI API key) in .env.local, which stays private.
 .env.local
 .env.*.local
+# Gemini key for live clinic prices. See apps/client/.env.example.
+apps/client/.env
 
 # OS / editor
 .DS_Store

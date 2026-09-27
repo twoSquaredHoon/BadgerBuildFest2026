@@ -107,3 +107,37 @@ test("another Wisconsin ZIP does not silently reuse Madison prices", () => {
   assert.equal(selectPublished("medicalConcernExam", "54701").tier, "statewide");
   assert.equal(selectPublished("urgentExam", "54301").records[0].clinicID, "ashwaubenon");
 });
+
+test("an empty live catalog does not fall back to stored dollars", () => {
+  const visit = { symptoms: ["Vomiting"], notes: "", duration: "recent", energy: "normal", intake: "normal", detail: "mild" };
+  const estimate = estimateCost(mapServices(visit, "fewDays"), "53703", []);
+  assert.equal(estimate.expectedPriceLabel, null);
+  assert.equal(moneyAmounts(estimate.summaryText).length, 0);
+  const plan = evaluate({ age: 3, weight: 25, zipCode: "53703" }, visit, new Date(), { records: [] });
+  assert.equal(plan.estimate.expectedPriceLabel, null);
+});
+
+test("a live catalog replaces stored prices for the same visit", () => {
+  const visit = { symptoms: ["Vomiting"], notes: "", duration: "recent", energy: "normal", intake: "normal", detail: "mild" };
+  const live = [{
+    id: "precision-medicalConcernExam-live",
+    service: "medicalConcernExam",
+    serviceLabel: "Sick or medical-concern exam",
+    lowPrice: "75",
+    highPrice: "75",
+    priceType: "fixed",
+    clinicID: "precision",
+    clinicName: "Precision Veterinary Madison",
+    sourceName: "Precision Veterinary Madison",
+    sourceTitle: "Clinic website",
+    sourceURL: "https://precisionveterinary.com/services/",
+    evidence: "clinicPosted",
+    confidence: "HIGH",
+    notes: "Copied from the clinic page"
+  }];
+  const estimate = estimateCost(mapServices(visit, "fewDays"), "53703", live);
+  assert.equal(estimate.expectedPriceLabel, "$75");
+  assert.equal(estimate.priceLines.length, 1);
+  assert.equal(estimate.priceLines[0].clinicID, "precision");
+  assert.equal(moneyAmounts(estimate.summaryText).includes("$60"), false);
+});
