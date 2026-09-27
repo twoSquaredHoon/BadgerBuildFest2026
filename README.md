@@ -1,103 +1,307 @@
-# BadgerBuildFest2026
+# PetVet
 
-A two-sided web app for **Badger BuildFest 2026** (UW–Madison), Health, Sustainability & Society track.
+PetVet is a two-sided, mobile-first web app that connects dog owners and solo vets, with urgency triage, upfront cost estimates, and local financial aid built into the booking flow.
 
-- **Pet owners (client app):** describe their dog's symptoms, get an urgency level and a likely cost range *before* the visit, find financial aid, and book a vet.
-- **Vets (vet app):** solo vets starting their own practice receive booking requests, manage appointments, keep a list of past patients, and chat with owners.
+> *Turning a scary, surprise vet bill into a planned conversation.*
 
-> One-line pitch: *We turn a scary, surprise vet bill into a planned conversation.*
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-Vet_App-3178C6?logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-Dev_Server-646CFF?logo=vite&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-Owner_App-F7DF1E?logo=javascript&logoColor=black)
+![Supabase](https://img.shields.io/badge/Supabase-Auth_%2B_Realtime-3FCF8E?logo=supabase&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-RLS_%2B_Triggers-4169E1?logo=postgresql&logoColor=white)
+![Gemini](https://img.shields.io/badge/Gemini-Price_Matching-8E75B2?logo=googlegemini&logoColor=white)
+![Cloudflare](https://img.shields.io/badge/Cloudflare-Quick_Tunnel-F38020?logo=cloudflare&logoColor=white)
 
-Both apps are **mobile-first web apps**. Anyone opens them from a link or QR code in their phone's browser, with nothing to install.
+Built at **Badger BuildFest 2026** (UW–Madison) for the **Health, Sustainability & Society** track.
 
-## Status
+PetVet was built around a simple problem: a dog gets sick, and the owner has no idea how serious it is or what the visit will cost until they are already at the clinic. A single procedure can run from a few hundred to several thousand dollars with no warning. Lower-income owners delay treatment, take on debt, or give up their pet. At the same time, there is no easy way to compare local vets on trust or price, and new vets starting their own practice have no easy way to reach new clients.
 
-| Part | Status |
-|---|---|
-| Vet app (`apps/vet`) | Built. Email sign-in, live data from Supabase. |
-| Client app (`apps/client`) | Built as PawPlan, a static website. Symptom check, urgency scale, and source-backed Madison prices work in the browser. Booking times are samples and are not sent to a clinic. |
-| Backend | Supabase schema, access rules and realtime written ([setup guide](docs/backend-setup.md)). Triage function not started. |
+| Stat | What it means |
+|-----:|---------------|
+| **52%** | of U.S. pet owners have skipped or declined needed vet care in the past year |
+| **71%** | of those who skipped care say cost was the reason |
+| **75M** | U.S. pets may lack access to needed vet care by 2030 |
+| **15K** | projected shortage of U.S. veterinarians by 2030 |
 
-## Project structure
+<sub>Sources: PetSmart Charities–Gallup State of Pet Care Study, 2025; Banfield Pet Hospital; Mars Veterinary Health workforce projections.</sub>
 
+PetVet puts both sides in one app. The owner side (**PawPlan**) tells an owner how urgent their dog's symptoms are, what the visit is likely to cost, and where to find financial help, then sends a booking request. The vet side receives that request live, along with the triage summary, and gives a solo vet a calendar, a patient history, and a chat with the owner. Both open from one link or QR code in a phone browser, with nothing to install.
+
+## Repository Snapshot
+
+| Area | What is implemented today |
+|------|----------------------------|
+| Owner app (PawPlan) | Static HTML/CSS/JS site: dog profile, emergency check, symptom questionnaire, 1–4 urgency scale, related conditions, cost estimate, financial aid, booking requests |
+| Vet app | React + TypeScript app: email sign-in, practice setup, booking requests, month/week/day calendar, past patients, chat, Apple Calendar export |
+| Backend | Supabase Postgres with row-level security, guard triggers, realtime on `bookings` and `messages`, open-slot and booking-request functions |
+| Live pricing | `POST /api/prices` reads clinic websites, keeps only prices printed on the page, optionally uses Gemini to match service names |
+| Symptom data | 424 dog owner observations and 75 dog disease records used for "May relate to" suggestions |
+| Financial aid | Real Madison and Wisconsin programs: WCVC, Lifeline, WisCARES, financing partners, and outside funds |
+| Demo hosting | One Vite server on port `8081` serves both sides; shared to phones through a Cloudflare quick tunnel + QR code |
+
+## Architecture Overview
+
+```mermaid
+flowchart LR
+    Owner["Pet owner's phone<br/>PawPlan (/owner/)"] -->|POST /api/prices| Server["Vite server :8081"]
+    Vet["Vet's phone<br/>Vet app (/)"] --> Server
+
+    subgraph ServerLayer["Single app server"]
+        Server --> Static["Serves vet app + owner site<br/>generates /owner/config.js"]
+        Server --> Prices["live-prices.mjs<br/>15 min cache"]
+    end
+
+    Prices -->|fetch pages| Clinics["Wisconsin clinic websites"]
+    Prices -.->|optional| Gemini["Gemini<br/>service-name matching"]
+
+    Owner -->|anonymous sign-in<br/>rpc/open_slots<br/>rpc/request_booking| DB
+    Vet -->|email sign-in<br/>accept / decline / complete<br/>messages| DB
+
+    subgraph Supabase["Supabase"]
+        DB["Postgres<br/>RLS + triggers"] --> RT["Realtime<br/>bookings, messages"]
+    end
+
+    RT -->|new request appears live| Vet
 ```
+
+## Why This Architecture
+
+The project is layered so each side can be built and demoed on its own, then joined through the database:
+
+1. **The owner side works as a static site.** Triage rules, symptom matching, and financial aid all run in the browser from plain JS modules, so the core flow works even before the backend exists.
+2. **The vet side is a React app backed by Supabase.** Every screen is driven by `bookings.status`, and Realtime pushes new requests and messages without refreshing.
+3. **The database enforces the rules, not the app.** Row-level security and triggers decide who can see what, which status changes are allowed, and which time slots are open, so neither client can break the workflow.
+4. **One server serves both sides.** A small Vite plugin mounts the owner site at `/owner/`, shares the Supabase settings with it, and hosts the price endpoint, so the whole demo runs from one link and one QR code.
+
+The only server-side code is the price reader, which keeps the optional Gemini key off of phones.
+
+## How It Works: Pet Owners
+
+| Step | Screen | What happens |
+|-----:|--------|--------------|
+| 1 | Create a profile | Dog's name, age, weight, and ZIP code. Saved in the browser; **Delete saved data** clears it. |
+| 2 | Emergency check | Serious signs go straight to Level 4 with emergency guidance. |
+| 3 | Describe symptoms | Pick from 10 symptom chips, then answer follow-ups on duration, energy, eating/drinking, and a symptom-specific detail. |
+| 4 | See urgency & price | Urgency level shown next to the full 1–4 scale, "May relate to" conditions, a cost estimate with sources, and questions to ask the vet. |
+| 5 | Explore financial aid | Real Madison and Wisconsin assistance programs, with eligibility notes and links. |
+| 6 | Book a vet | Pick a clinic and an open time, enter name and phone, and send the request with the triage summary attached. Status updates and cancel are available after sending. |
+
+## How It Works: Vets
+
+| Step | Screen | What happens |
+|-----:|--------|--------------|
+| 1 | Sign in | Email and password; first sign-in asks for name, clinic, and city. |
+| 2 | Requests | Incoming booking requests with the dog's info; accept or decline each one. |
+| 3 | Appointments | Month, week, and day calendar views; add any visit to Apple Calendar (`.ics`). |
+| 4 | Patients | Dogs with completed visits and their visit history. |
+| 5 | Chat | Talk with the owner about symptoms, only while the appointment is accepted. |
+
+## Urgency Levels
+
+| Level | Title | Timing | Triggered by |
+|------:|-------|--------|--------------|
+| 1 | Keep a close eye | Monitor and call if concerned | Mild, recent symptoms with normal answers |
+| 2 | Plan a vet visit | Within the next few days | Mild illness that is not getting worse |
+| 3 | Call a vet today | Today or as your vet advises | Follow-up answers that say the dog is worse |
+| 4 | Get emergency help | Contact an emergency vet now | Severe lethargy, unable to eat or drink, or a red-flag sign |
+
+## Booking Lifecycle
+
+```mermaid
+sequenceDiagram
+    participant O as Owner (PawPlan)
+    participant S as App server
+    participant D as Supabase
+    participant V as Vet app
+
+    O->>O: Profile, emergency check, symptoms
+    O->>S: POST /api/prices
+    S-->>O: Prices printed on clinic pages
+    O->>O: Urgency level, cost estimate, financial aid
+
+    O->>D: rpc/open_slots
+    D-->>O: Clinics with open times
+    O->>D: Anonymous sign-in (first booking)
+    O->>D: rpc/request_booking (owner, dog, triage summary)
+    D-->>V: Realtime: new pending request
+
+    V->>D: Accept (pending → accepted)
+    D-->>O: Status: accepted
+    O->>V: Chat messages (accepted only)
+    V->>D: Mark complete (accepted → completed)
+    D-->>V: Dog appears under Past patients
+```
+
+`bookings.status` drives every screen:
+
+| Status | Shown on |
+|--------|----------|
+| `pending` | Vet: Requests |
+| `accepted` | Vet: Appointments, Chat |
+| `declined` | Owner is notified |
+| `completed` | Vet: Past patients |
+| `cancelled` | Owner cancelled |
+
+## Tech Stack
+
+| Layer | Technology | Why it is used |
+|------|------------|----------------|
+| Vet UI | React 19 + TypeScript + React Router | Typed screens and routes for the four-tab vet app |
+| Owner UI | Plain HTML/CSS/JS modules | Fast, dependency-free phone site that works without a build step |
+| Build / dev server | Vite | Hot reload, serves both sides on one port, preview build for demos |
+| Styling | Plain CSS | Phone-width layouts with no UI library |
+| Database | Supabase Postgres | Tables, row-level security, triggers, and RPC functions |
+| Auth | Supabase Auth | Email + password for vets; anonymous sign-in for owners |
+| Live updates | Supabase Realtime | New requests and chat messages appear without refreshing |
+| Price matching | Gemini (optional) | Matches clinic service names; amounts must still appear on the page |
+| Demo hosting | Cloudflare quick tunnel | Free public link for phones on campus Wi-Fi, shared by QR code |
+
+## Key Design Decisions
+
+| Decision | Why | Alternative |
+|----------|-----|-------------|
+| Mobile-first web app instead of native | Anyone opens it from a link or QR code with nothing to install | iOS / Android apps |
+| Owner side as a static site | Core triage works in the browser and can be built in parallel with the backend | Second React app from day one |
+| Rules enforced in the database | RLS and triggers protect data and status changes no matter what a client sends | Checks only in app code |
+| Anonymous owner sign-in | Owners only type a name and phone number to book | Full owner accounts |
+| Price must be printed on the clinic page | No invented dollar amounts; a model can match a name but not make up a price | Let the model estimate prices |
+| No fallback to stored dollars | If clinic sites can't be read, the plan shows no amount instead of stale numbers | Fall back to a cached catalog |
+| Rule-based urgency, not a black box | Levels are explainable and testable; mild illnesses stay at Level 1–2 unless follow-ups say otherwise | Model-only triage |
+| One server for both sides | One link, one QR code, one tunnel for the demo | Two separately hosted apps |
+| Publishable key committed in `apps/vet/.env` | Teammates can run right after cloning; access rules protect the data | Every teammate sets up keys by hand |
+
+## Current Scope
+
+The strongest end-to-end path in this repository is:
+
+- Owner profile → emergency check → symptom questionnaire → 1–4 urgency level
+- "May relate to" conditions from the owner-observation and disease datasets
+- Live, source-backed clinic prices read at request time
+- Real Madison and Wisconsin financial-assistance programs
+- Booking request from the owner side that appears live on the vet's Requests screen
+- Vet accept / decline, calendar, patients, and chat backed by Supabase
+
+A few edges are scaffolded for future work:
+
+- The stored Wisconsin price catalog in `pricing-data.js` (15 clinics) is disconnected from the estimate while it moves into the database. The live price reader still uses its clinic list.
+- Owner-side chat with the vet is planned; chat currently works from the vet side.
+- The AI triage Edge Function (`supabase/functions/triage/`) is not started; urgency is rule-based in `care.js`.
+- Owners are dog owners only. Cats and other animals, payments, and real clinic integrations are out of scope for the hackathon.
+
+## Data In This Repo
+
+| File | Contents | Used for |
+|------|----------|----------|
+| `data/pet_health_symptoms.xlsx` | 2,000 rows; 424 dog and puppy owner observations with a condition label | Matching symptom chips to related conditions (`pet-symptoms.js`) |
+| `data/dog_disease_prediction.xlsx` | 75 dogs with up to four symptoms and a predicted disease | "May relate to" disease suggestions (`disease-cases.js`) |
+| `apps/client/pricing-data.js` | 15 Wisconsin clinics with published prices, sources, and coordinates (accessed 2026-09-26) | Clinic list for live prices; stored catalog (disconnected) |
+| `apps/client/zip-centroids.js` | 783 Wisconsin ZIP centroids (Census 2024 Gazetteer) | Ranking clinics by distance from the owner's ZIP |
+
+The datasets give condition labels only. They contain no prices, and PawPlan never presents a related condition as a diagnosis.
+
+## Project Structure
+
+```text
 BadgerBuildFest2026/
-├── apps/
-│   ├── vet/        Vet side web app (Vite + React + TypeScript)
-│   └── client/     Pet owner website (PawPlan, static HTML/CSS/JS)
-├── supabase/
-│   └── migrations/0001_init.sql   Tables, access rules, realtime
-├── data/
-│   └── dog_disease_prediction.xlsx   Symptom → disease sample data for triage
-├── docs/
-│   ├── architecture.md          How the apps are built and how they connect
-│   ├── backend-setup.md         Create the Supabase project and sign-in
-│   ├── running-and-hosting.md   Run locally and share with a QR code
-│   ├── data.md                  About the triage dataset
-│   ├── prd-client.md            Product requirements: pet owner app
-│   └── prd-vet.md               Product requirements: vet app
-└── README.md
+|-- apps/
+|   |-- vet/                             # Vet app (Vite + React + TypeScript), also serves the owner side
+|   |   |-- vite.config.ts               # Port 8081, /owner/ mount, /api/prices, tunnel hosts
+|   |   |-- .env.example                 # Supabase URL + publishable key
+|   |   `-- src/
+|   |       |-- App.tsx                  # Start screen, sign-in gate, routes
+|   |       |-- store/                   # Auth.tsx, VetStore.tsx (data + realtime), Side.tsx
+|   |       |-- pages/                   # Requests, Appointments, Patients, Chat, details, sign-in, setup
+|   |       |-- components/              # Tab layout, toast, shared UI, icons
+|   |       |-- lib/                     # Supabase client, dates, .ics calendar export
+|   |       `-- types/index.ts           # Dog, Owner, BookingRequest, Patient, Message
+|   `-- client/                          # Owner site (PawPlan, static HTML/CSS/JS)
+|       |-- app.js                       # Screens, state, booking flow
+|       |-- care.js                      # Urgency rules, related conditions, cost estimate, assistance
+|       |-- backend.js                   # Supabase REST calls: open slots, request, status, cancel
+|       |-- live-prices.mjs              # Reads clinic pages, optional Gemini matching
+|       |-- server.mjs                   # Standalone server for the owner site on :8787
+|       |-- pricing-data.js              # Wisconsin clinics and published prices
+|       |-- pet-symptoms.js              # Owner observations from pet_health_symptoms.xlsx
+|       |-- disease-cases.js             # Disease records from dog_disease_prediction.xlsx
+|       |-- zip-centroids.js             # Wisconsin ZIP coordinates
+|       `-- *.test.js                    # care.test.js, live-prices.test.js
+|-- supabase/migrations/
+|   |-- 0001_init.sql                    # Tables, RLS, guard triggers, realtime
+|   |-- 0002_open_slots.sql              # Open appointment times, no double-booking
+|   `-- 0003_booking_requests.sql        # request_booking function for owners
+|-- data/                                # Source spreadsheets
+`-- docs/                                # Architecture, setup, hosting, data, PRDs
 ```
 
-## Vet app (`apps/vet`)
+## Getting Started
 
-The vet side: a mobile-first web app for solo vets.
+### Requirements
 
-- **Requests:** accept or decline booking requests from pet owners
-- **Appointments:** month, week and day calendar views; add a visit to Apple Calendar
-- **Patients:** dogs that have visited, with their past visits
-- **Chat:** talk with owners about their dog's symptoms (accepted appointments only)
+- Node.js **20.19 or newer**
+- A Supabase project (free tier works)
+- Optional: a free Gemini API key from Google AI Studio
 
-### Run
+### 1. Set up Supabase (once per team)
 
-Requires **Node.js 20.19 or newer**.
+Full walkthrough: [docs/backend-setup.md](docs/backend-setup.md).
 
-First set up the backend once: [docs/backend-setup.md](docs/backend-setup.md) (Supabase project, sign-in), then copy `apps/vet/.env.example` to `apps/vet/.env` and fill in the two values.
+1. Create a Supabase project and copy the **Project URL** and **publishable key**.
+2. In **SQL Editor**, run `0001_init.sql`, `0002_open_slots.sql`, and `0003_booking_requests.sql` in order.
+3. Under **Authentication → Sign In / Providers**, turn on **Allow anonymous sign-ins** and turn off **Confirm email**.
+
+### 2. Configure environment
+
+```bash
+cp apps/vet/.env.example apps/vet/.env          # VITE_SUPABASE_URL, VITE_SUPABASE_KEY
+cp apps/client/.env.example apps/client/.env    # GEMINI_API_KEY (optional)
+```
+
+Never put the Supabase secret / `service_role` key in either file. The Gemini key stays on the server and `apps/client/.env` is git-ignored.
+
+### 3. Run
 
 ```bash
 cd apps/vet
 npm install
-npm run dev        # http://localhost:8081, updates live as you edit
+npm run dev        # http://localhost:8081
 ```
 
-For a faster demo build: `npm run build` then `npm run serve`. To open it on a phone with a QR code, see [docs/running-and-hosting.md](docs/running-and-hosting.md).
+- Start screen: choose **Pet owner** or **Vet**
+- Owner side: `http://localhost:8081/owner/`
+- Vet side: create an account, then set up your practice
+- For a faster demo build: `npm run build` then `npm run serve`
 
-### Data
+To run only the owner site: `node apps/client/server.mjs` (serves on `http://127.0.0.1:8787`).
 
-Vets sign in with email and password. Booking requests, appointments, patients and messages come from Supabase and update live.
+### 4. Share with phones
 
-## Client app (`apps/client`) — PawPlan
-
-The pet-owner website. A dog owner enters a profile, passes an emergency check, reports symptoms, and sees a demo urgency level next to the full 1–4 scale. Madison ZIP codes show published clinic prices with their sources. Other ZIP codes are not given Madison prices. Financial-assistance links are real Madison and Wisconsin programs. Appointment times are samples and are not sent to a clinic.
-
-### Run
-
-Open both sides from the vet app. The start screen has **Pet owner** and **Vet**.
+Campus Wi-Fi blocks phones from reaching a laptop directly, so the demo uses a free Cloudflare quick tunnel:
 
 ```bash
-cd apps/vet
-npm install
-npm run dev                    # http://localhost:8081
+./cloudflared tunnel --url http://localhost:8081
+npx qrcode-terminal https://<your-words>.trycloudflare.com
 ```
 
-Pet owner opens at http://localhost:8081/owner/. **Switch side** returns to the start screen. Live prices use `POST /api/prices` on this same server. Put a Gemini key in `apps/client/.env` (see `.env.example`). The key stays on the server and is not committed. A price is kept only when that exact amount is printed on the clinic page.
+Keep the dev server and tunnel running, and the laptop awake. Details and troubleshooting: [docs/running-and-hosting.md](docs/running-and-hosting.md).
+
+## Testing
+
+Automated tests cover the owner-side logic:
+
+- urgency levels for mild, worsening, and red-flag answers
+- the printed summary naming the result and every level
+- real links for every assistance program
+- related-condition suggestions from the health records
+- cost totals that only use published amounts
+- live page text keeping a printed price and dropping an invented one
 
 ```bash
 cd apps/client
 node --test care.test.js live-prices.test.js
 ```
 
-Without the key, prices still come from the page text. If the clinic sites cannot be read, the plan shows no dollar amount instead of the stored catalog. Chat with a vet and live booking are still planned.
-
-## Code
-
-See [docs/architecture.md](docs/architecture.md) for the folder structure, routes, state and data model.
-
-## Tech stack
-
-- **Frontend:** React 19, TypeScript, Vite, React Router
-- **Styling:** plain CSS (`apps/vet/src/styles.css`), phone-width layout
-- **Hosting (demo):** served from a laptop and shared through a free Cloudflare quick tunnel
-- **Backend:** Supabase (Postgres database, email sign-in, realtime updates); AI triage Edge Function planned
+Three pricing tests are skipped while `pricing-data.js` is disconnected, and `a live catalog replaces stored prices for the same visit` currently fails for the same reason.
 
 ## Documentation
 
@@ -107,3 +311,23 @@ See [docs/architecture.md](docs/architecture.md) for the folder structure, route
 - [Triage dataset](docs/data.md)
 - [PRD: pet owner app](docs/prd-client.md)
 - [PRD: vet app](docs/prd-vet.md)
+
+## Why This Project Is Interesting
+
+PetVet is not just "a vet booking app." The interesting part is how it puts cost and trust into the moment an owner decides whether to get care:
+
+- It gives an urgency level **and** a price before the visit, not after.
+- It refuses to show a dollar amount it can't trace to a clinic's own page.
+- It surfaces real local financial aid inside the booking flow, not on a separate page.
+- It gives solo vets a working practice tool on day one: requests, calendar, patients, and chat.
+- It pushes the hard rules (privacy, status changes, double-booking) into the database, so both sides stay honest.
+
+That combination makes it part triage tool, part pricing-transparency experiment, and part two-sided marketplace for the vets who need new clients most.
+
+## Team
+
+Built at Badger BuildFest 2026 by:
+
+- slee2238@wisc.edu
+- tgraser@wisc.edu
+- sheo9@wisc.edu
