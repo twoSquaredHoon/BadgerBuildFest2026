@@ -26,14 +26,9 @@ Dog owners see how urgent it is, what it costs nearby, and who can help pay, bef
 
 ### 1.1. More than half of pet owners walk away from care
 
-```mermaid
-%%{init: {"theme": "base", "themeVariables": {"xyChart": {"backgroundColor": "transparent", "plotColorPalette": "#C2410C", "titleColor": "#8A8F87", "xAxisLabelColor": "#8A8F87", "yAxisLabelColor": "#8A8F87", "dataLabelColor": "#FFFFFF"}}, "xyChart": {"width": 720, "height": 300, "showDataLabel": true, "titleFontSize": 18, "xAxis": {"showTick": false, "showAxisLine": false, "labelFontSize": 15}, "yAxis": {"showLabel": false, "showTick": false, "showAxisLine": false, "showTitle": false}}}}%%
-xychart-beta horizontal
-    title "Pet owners and the cost of care (%)"
-    x-axis ["Skipped or declined care", "Cost was the reason", "No cheaper option offered", "Pet got worse or died"]
-    y-axis 0 --> 100
-    bar [52, 71, 73, 14]
-```
+<p align="center">
+  <img src="docs/charts/owners.svg" alt="Pet owners and the cost of care" width="720">
+</p>
 
 - **52%** of U.S. pet owners skipped or declined vet care their pet needed in the past year.
 - **71%** of them say cost was the reason.
@@ -44,23 +39,13 @@ xychart-beta horizontal
 
 ### 1.2. Vets feel it too, and the cost talk comes too late
 
-```mermaid
-%%{init: {"theme": "base", "themeVariables": {"xyChart": {"backgroundColor": "transparent", "plotColorPalette": "#2E6A4E", "titleColor": "#8A8F87", "xAxisLabelColor": "#8A8F87", "yAxisLabelColor": "#8A8F87", "dataLabelColor": "#FFFFFF"}}, "xyChart": {"width": 720, "height": 240, "showDataLabel": true, "titleFontSize": 18, "xAxis": {"showTick": false, "showAxisLine": false, "labelFontSize": 15}, "yAxis": {"showLabel": false, "showTick": false, "showAxisLine": false, "showTitle": false}}}}%%
-xychart-beta horizontal
-    title "When vets bring up the client's finances (%)"
-    x-axis ["Before recommending", "After recommending", "Only if the client asks"]
-    y-axis 0 --> 100
-    bar [17, 49, 34]
-```
+<p align="center">
+  <img src="docs/charts/vets-timing.svg" alt="When vets bring up the client's finances" width="720">
+</p>
 
-```mermaid
-%%{init: {"theme": "base", "themeVariables": {"xyChart": {"backgroundColor": "transparent", "plotColorPalette": "#2E6A4E", "titleColor": "#8A8F87", "xAxisLabelColor": "#8A8F87", "yAxisLabelColor": "#8A8F87", "dataLabelColor": "#FFFFFF"}}, "xyChart": {"width": 720, "height": 240, "showDataLabel": true, "titleFontSize": 18, "xAxis": {"showTick": false, "showAxisLine": false, "labelFontSize": 15}, "yAxis": {"showLabel": false, "showTick": false, "showAxisLine": false, "showTitle": false}}}}%%
-xychart-beta horizontal
-    title "What vets say (%)"
-    x-axis ["Finances limit the care", "Declined care hurts the team", "No training on cost talks"]
-    y-axis 0 --> 100
-    bar [94, 76, 48]
-```
+<p align="center">
+  <img src="docs/charts/vets-say.svg" alt="What vets say" width="720">
+</p>
 
 Only **17%** of vets raise cost before recommending care, so the budget usually comes up after the plan is set.
 

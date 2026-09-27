@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="208" viewBox="0 0 720 208" role="img" aria-label="What vets say">
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .title { font-size: 18px; font-weight: 600; fill: #8A8F87; }
+    .label { font-size: 15px; fill: #8A8F87; }
+    .value { font-size: 17px; font-weight: 700; }
+  </style>
+  <text x="264" y="22" class="title">What vets say</text>
+  <text x="250" y="61" text-anchor="end" dominant-baseline="central" class="label">Finances limit the care</text>
+  <rect x="264" y="44" width="421.1" height="34" rx="8" fill="#2E6A4E"/>
+  <text x="673.12" y="61" text-anchor="end" dominant-baseline="central" class="value" fill="#FFFFFF">94%</text>
+  <text x="250" y="113" text-anchor="end" dominant-baseline="central" class="label">Declined care hurts the team</text>
+  <rect x="264" y="96" width="340.5" height="34" rx="8" fill="#2E6A4E"/>
+  <text x="592.48" y="113" text-anchor="end" dominant-baseline="central" class="value" fill="#FFFFFF">76%</text>
+  <text x="250" y="165" text-anchor="end" dominant-baseline="central" class="label">No training on cost talks</text>
+  <rect x="264" y="148" width="215.0" height="34" rx="8" fill="#2E6A4E"/>
+  <text x="467.03999999999996" y="165" text-anchor="end" dominant-baseline="central" class="value" fill="#FFFFFF">48%</text>
+</svg>
