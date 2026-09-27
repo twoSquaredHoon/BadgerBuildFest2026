@@ -1,5 +1,14 @@
 # PetVet
 
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-Vet_App-3178C6?logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-Dev_Server-646CFF?logo=vite&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-Owner_App-F7DF1E?logo=javascript&logoColor=black)
+![Supabase](https://img.shields.io/badge/Supabase-Auth_%2B_Realtime-3FCF8E?logo=supabase&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-RLS_%2B_Triggers-4169E1?logo=postgresql&logoColor=white)
+![Gemini](https://img.shields.io/badge/Gemini-Price_Matching-8E75B2?logo=googlegemini&logoColor=white)
+![Cloudflare](https://img.shields.io/badge/Cloudflare-Quick_Tunnel-F38020?logo=cloudflare&logoColor=white)
+
 **Track: Health, Sustainability & Society** · Badger BuildFest 2026 (UW–Madison)
 
 Dog owners see how urgent it is, what it costs nearby, and who can help pay, before the visit. Their vet gets the request with the budget attached.
@@ -13,15 +22,6 @@ Dog owners see how urgent it is, what it costs nearby, and who can help pay, bef
 |-----------|--------|--------------|-----------------------|
 | **Owner-Side Communication & Decision Support: The Cost-of-Care Conversation** | 1st $500 · 2nd $250 | More than half of U.S. pet owners skip or decline recommended care, often over cost. How might you turn the conversation from sticker shock into an informed, shared decision between owner and vet? | The owner sees urgency and published local prices **before** the visit. Their budget and aid plan travel with the booking request, so the vet knows the constraints before recommending care. An "apply before you pay" checklist tells the owner what to ask the vet for. |
 | **Open Venture** | 1st $500 · 2nd $250 | Real venture potential: market signal, founder-market fit, differentiation, and a path beyond the weekend. | A $158B U.S. pet industry with a documented care gap; the only flow we found that joins urgency, local price, financial aid, and the vet; a path from Madison independents to Wisconsin to national. See [Open Venture](#open-venture). |
-
-![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
-![TypeScript](https://img.shields.io/badge/TypeScript-Vet_App-3178C6?logo=typescript&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-Dev_Server-646CFF?logo=vite&logoColor=white)
-![JavaScript](https://img.shields.io/badge/JavaScript-Owner_App-F7DF1E?logo=javascript&logoColor=black)
-![Supabase](https://img.shields.io/badge/Supabase-Auth_%2B_Realtime-3FCF8E?logo=supabase&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-RLS_%2B_Triggers-4169E1?logo=postgresql&logoColor=white)
-![Gemini](https://img.shields.io/badge/Gemini-Price_Matching-8E75B2?logo=googlegemini&logoColor=white)
-![Cloudflare](https://img.shields.io/badge/Cloudflare-Quick_Tunnel-F38020?logo=cloudflare&logoColor=white)
 
 PetVet was built around a simple problem: a dog gets sick, and the owner has no idea how serious it is or what the visit will cost until they are already at the clinic. A single procedure can run from a few hundred to several thousand dollars with no warning. Lower-income owners delay treatment, take on debt, or give up their pet. At the same time, there is no easy way to compare local vets on trust or price, and new vets starting their own practice have no easy way to reach new clients.
 
