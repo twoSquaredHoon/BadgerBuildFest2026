@@ -28,6 +28,48 @@ PetVet was built around a simple problem: a dog gets sick, and the owner has no 
 
 PetVet puts both sides in one app. The owner side (**PawPlan**) tells an owner how urgent their dog's symptoms are, what the visit is likely to cost, and where to find financial help, then sends a booking request. The vet side receives that request live, along with the triage summary, and gives a solo vet a calendar, a patient history, and a chat with the owner. Both open from one link or QR code in a phone browser, with nothing to install.
 
+## Challenges We're Entering
+
+| Challenge | Prizes | What it asks | How PetVet answers it |
+|-----------|--------|--------------|-----------------------|
+| **Owner-Side Communication & Decision Support: The Cost-of-Care Conversation** | 1st $500 · 2nd $250 | More than half of U.S. pet owners skip or decline recommended care, often over cost. How might you turn the conversation from sticker shock into an informed, shared decision between owner and vet? | The owner sees urgency and published local prices **before** the visit. Their budget and aid plan travel with the booking request, so the vet knows the constraints before recommending care. An "apply before you pay" checklist tells the owner what to ask the vet for. |
+| **Open Venture** | 1st $500 · 2nd $250 | Real venture potential: market signal, founder-market fit, differentiation, and a path beyond the weekend. | A $158B U.S. pet industry with a documented care gap; the only flow we found that joins urgency, local price, financial aid, and the vet; a path from Madison independents to Wisconsin to national. See [Open Venture](#open-venture). |
+| **Track: Health, Sustainability & Society** | | | Access to care for pets of lower-income owners, and a way for new solo vets to stay in business. |
+
+## The Problems We're Solving
+
+PetVet is aimed at one moment (an owner deciding whether to get care) where three groups are each missing something:
+
+| Who | The problem | Evidence | What PetVet does |
+|-----|-------------|----------|------------------|
+| **Pet owners** | They don't know how urgent it is, what it will cost, or that help exists, until they're at the front desk. | 52% skipped or declined needed care; 71% of them because of cost; 73% of those were never offered a lower-cost option; 14% say their pet got worse or died. | Urgency level 1–4, published local prices with sources, and financial aid matched to their county, income, and urgency, all before booking. |
+| **Vets, especially new solo practices** | The cost conversation happens too late, and independents compete with chains for new clients. | Only 17% of vets raise finances before recommending care; 94% say clients' finances limit care; 48% had no training on cost conversations. Corporate groups own about 25% of primary-care practices and 50% of U.S. vet revenue. | Booking requests arrive live with the triage summary, the owner's budget, and the aid programs they're applying to, plus a free calendar, patient list, and chat. |
+| **Financial aid programs** | Most grants need a diagnosis and written estimate, pay the clinic directly, and never refund a bill already paid. Owners find them too late. | 14 programs reviewed (Sep 26, 2026): RedRover, Frankie's Friends, Paws 4 A Cure, Noah's, Heart2Heart and others all require the vet's estimate first. | Owners shortlist programs before the visit; the app tells them what to ask the vet for and warns when a program won't pay a clinic. |
+
+<sub>Sources: Gallup, [52% of U.S. Pet Owners Skipped or Declined Veterinary Care](https://news.gallup.com/poll/659057/pet-owners-skipped-declined-veterinary-care.aspx) (2025) and [Veterinarians Say Cost Is the Main Driver of Declined Care](https://news.gallup.com/poll/700115/veterinarians-say-cost-main-driver-declined-care.aspx) (2025); [PetSmart Charities](https://petsmartcharities.org/press-releases/cost-of-care-continues-to-strain-veterinary-care-access-new-study-finds) (Jan 2026); [AAHA](https://www.aaha.org/trends-magazine/publications/how-to-compete-in-the-veterinary-corporate-consolidation-race/) citing a 2025 Frontiers in Veterinary Science study; `data/pet_financial_aid_orgs_expanded.xlsx`.</sub>
+
+## Breadth at a Glance
+
+| Dimension | What we built |
+|-----------|---------------|
+| **Users** | Two sides in one app: pet owners (PawPlan) and vets, joined live through the database |
+| **End-to-end flow** | Symptoms → emergency check → urgency 1–4 → related conditions → local published price → financial aid → booking request → vet accept / decline → calendar, patients, chat |
+| **Money** | Source-backed clinic prices, a "can you cover this?" check, 15 financial-help options (Wisconsin + national) matched by county, income, urgency, and grant limits |
+| **Data** | 424 owner observations, 75 disease records, 15 Wisconsin clinics, 783 ZIP centroids, ZIP → county for all 72 Wisconsin counties, 14 aid organizations checked against their own sites |
+| **Backend** | Supabase Postgres with row-level security, guard triggers, realtime, and three migrations (tables, open slots, booking requests) |
+| **AI** | Gemini matches clinic service names to prices; every dollar amount must appear on the clinic's own page |
+| **Quality** | 18 automated tests across urgency rules, pricing, live-price parsing, and aid matching |
+| **Demo** | One server, one link, one QR code for both sides, over a free Cloudflare tunnel |
+
+## Open Venture
+
+| | |
+|-|-|
+| **Market signal** | U.S. pet industry spending reached $158B in 2025 across 95M pet households ([APPA](https://americanpetproducts.org/news/u.s.-pet-industry-reaches-158-billion-in-2025-poised-for-continued-growth-in-2026)). More than half of owners skip needed care, so demand already exists and goes unmet. |
+| **Differentiation** | Symptom checkers, vet price sites, and aid directories each exist separately. None we found connects them, and none sends the owner's budget to the vet before the visit. |
+| **Founder-market fit** | A UW–Madison team building with real Madison and Wisconsin clinic prices and aid programs verified against each program's site. |
+| **Path beyond the weekend** | Pilot with independent Madison vets → all of Wisconsin → national aid data. Proposed revenue (not yet validated): a vet subscription for pre-triaged booking requests, plus financing referrals. |
+
 ## Repository Snapshot
 
 | Area | What is implemented today |
@@ -37,7 +79,7 @@ PetVet puts both sides in one app. The owner side (**PawPlan**) tells an owner h
 | Backend | Supabase Postgres with row-level security, guard triggers, realtime on `bookings` and `messages`, open-slot and booking-request functions |
 | Live pricing | `POST /api/prices` reads clinic websites, keeps only prices printed on the page, optionally uses Gemini to match service names |
 | Symptom data | 424 dog owner observations and 75 dog disease records used for "May relate to" suggestions |
-| Financial aid | Real Madison and Wisconsin programs: WCVC, Lifeline, WisCARES, financing partners, and outside funds |
+| Financial aid | **Help paying** screen: 15 Wisconsin + national options matched by county (from ZIP), income, urgency, and grant limits; saved programs travel with the booking; "Your aid plan" checklist; vet sees an "On a budget" note |
 | Demo hosting | One Vite server on port `8081` serves both sides; shared to phones through a Cloudflare quick tunnel + QR code |
 
 ## Architecture Overview
@@ -84,7 +126,7 @@ The only server-side code is the price reader, which keeps the optional Gemini k
 | 2 | Emergency check | Serious signs go straight to Level 4 with emergency guidance. |
 | 3 | Describe symptoms | Pick from 10 symptom chips, then answer follow-ups on duration, energy, eating/drinking, and a symptom-specific detail. |
 | 4 | See urgency & price | Urgency level shown next to the full 1–4 scale, "May relate to" conditions, a cost estimate with sources, and questions to ask the vet. |
-| 5 | Explore financial aid | Real Madison and Wisconsin assistance programs, with eligibility notes and links. |
+| 5 | Help paying | "Can you cover about $X?" If not: county, income, and budget → programs to use now vs. apply after the vet's estimate, with fit, amount, and timing. Save the ones you'll use. |
 | 6 | Book a vet | Pick a clinic and an open time, enter name and phone, and send the request with the triage summary attached. Status updates and cancel are available after sending. |
 
 ## How It Works: Vets
@@ -92,7 +134,7 @@ The only server-side code is the price reader, which keeps the optional Gemini k
 | Step | Screen | What happens |
 |-----:|--------|--------------|
 | 1 | Sign in | Email and password; first sign-in asks for name, clinic, and city. |
-| 2 | Requests | Incoming booking requests with the dog's info; accept or decline each one. |
+| 2 | Requests | Incoming booking requests with the dog's info, triage summary, and the owner's budget and aid plan; accept or decline each one. |
 | 3 | Appointments | Month, week, and day calendar views; add any visit to Apple Calendar (`.ics`). |
 | 4 | Patients | Dogs with completed visits and their visit history. |
 | 5 | Chat | Talk with the owner about symptoms, only while the appointment is accepted. |
@@ -178,7 +220,7 @@ The strongest end-to-end path in this repository is:
 - Owner profile → emergency check → symptom questionnaire → 1–4 urgency level
 - "May relate to" conditions from the owner-observation and disease datasets
 - Live, source-backed clinic prices read at request time
-- Real Madison and Wisconsin financial-assistance programs
+- Financial aid matched to the owner and carried to the vet with the booking
 - Booking request from the owner side that appears live on the vet's Requests screen
 - Vet accept / decline, calendar, patients, and chat backed by Supabase
 
@@ -197,6 +239,8 @@ A few edges are scaffolded for future work:
 | `data/dog_disease_prediction.xlsx` | 75 dogs with up to four symptoms and a predicted disease | "May relate to" disease suggestions (`disease-cases.js`) |
 | `apps/client/pricing-data.js` | 15 Wisconsin clinics with published prices, sources, and coordinates (accessed 2026-09-26) | Clinic list for live prices; stored catalog (disconnected) |
 | `apps/client/zip-centroids.js` | 783 Wisconsin ZIP centroids (Census 2024 Gazetteer) | Ranking clinics by distance from the owner's ZIP |
+| `data/pet_financial_aid_orgs_expanded.xlsx` | 14 Wisconsin and national aid organizations, checked against each org's site (Sep 26, 2026) | `aid-orgs.js`, the Help paying screen |
+| `apps/client/zip-counties.js` | Wisconsin ZIP → county for all 72 counties (Census crosswalk) | Matching county-limited aid programs |
 
 The datasets give condition labels only. They contain no prices, and PawPlan never presents a related condition as a diagnosis.
 
@@ -225,7 +269,10 @@ BadgerBuildFest2026/
 |       |-- pet-symptoms.js              # Owner observations from pet_health_symptoms.xlsx
 |       |-- disease-cases.js             # Disease records from dog_disease_prediction.xlsx
 |       |-- zip-centroids.js             # Wisconsin ZIP coordinates
-|       `-- *.test.js                    # care.test.js, live-prices.test.js
+|       |-- aid-orgs.js                  # Financial aid programs (from pet_financial_aid_orgs_expanded.xlsx)
+|       |-- aid.js                       # Matches owners to aid; clinic warnings; document checklist
+|       |-- zip-counties.js              # Wisconsin ZIP → county
+|       `-- *.test.js                    # care.test.js, aid.test.js, live-prices.test.js
 |-- supabase/migrations/
 |   |-- 0001_init.sql                    # Tables, RLS, guard triggers, realtime
 |   |-- 0002_open_slots.sql              # Open appointment times, no double-booking
@@ -295,13 +342,14 @@ Automated tests cover the owner-side logic:
 - related-condition suggestions from the health records
 - cost totals that only use published amounts
 - live page text keeping a printed price and dropping an invented one
+- aid matching by county, income, urgency, and grant limits; clinic warnings; the document checklist
 
 ```bash
 cd apps/client
-node --test care.test.js live-prices.test.js
+node --test care.test.js aid.test.js live-prices.test.js
 ```
 
-Three pricing tests are skipped while `pricing-data.js` is disconnected, and `a live catalog replaces stored prices for the same visit` currently fails for the same reason.
+Three pricing tests are skipped while the stored prices in `pricing-data.js` are disconnected.
 
 ## Documentation
 
