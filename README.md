@@ -27,10 +27,11 @@ Dog owners see how urgent it is, what it costs nearby, and who can help pay, bef
 ### 1.1. More than half of pet owners walk away from care
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"xyChart": {"backgroundColor": "transparent", "plotColorPalette": "#C2410C", "titleColor": "#8A8F87", "xAxisLabelColor": "#8A8F87", "yAxisLabelColor": "#8A8F87", "dataLabelColor": "#FFFFFF"}}, "xyChart": {"width": 720, "height": 300, "showDataLabel": true, "titleFontSize": 18, "xAxis": {"showTick": false, "showAxisLine": false, "labelFontSize": 15}, "yAxis": {"showLabel": false, "showTick": false, "showAxisLine": false, "showTitle": false}}}}%%
 xychart-beta horizontal
-    title "U.S. pet owners and the cost of care (%)"
-    x-axis ["Skipped or declined needed care", "Of those: cost was the reason", "Declined over cost, never offered a cheaper option", "Pet got worse or died after skipping care"]
-    y-axis "Percent" 0 --> 100
+    title "Pet owners and the cost of care (%)"
+    x-axis ["Skipped or declined care", "Cost was the reason", "No cheaper option offered", "Pet got worse or died"]
+    y-axis 0 --> 100
     bar [52, 71, 73, 14]
 ```
 
@@ -44,18 +45,20 @@ xychart-beta horizontal
 ### 1.2. Vets feel it too, and the cost talk comes too late
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"xyChart": {"backgroundColor": "transparent", "plotColorPalette": "#2E6A4E", "titleColor": "#8A8F87", "xAxisLabelColor": "#8A8F87", "yAxisLabelColor": "#8A8F87", "dataLabelColor": "#FFFFFF"}}, "xyChart": {"width": 720, "height": 240, "showDataLabel": true, "titleFontSize": 18, "xAxis": {"showTick": false, "showAxisLine": false, "labelFontSize": 15}, "yAxis": {"showLabel": false, "showTick": false, "showAxisLine": false, "showTitle": false}}}}%%
 xychart-beta horizontal
     title "When vets bring up the client's finances (%)"
-    x-axis ["Before recommending care", "After recommending care", "Only if the client asks or declines"]
-    y-axis "Percent of vets" 0 --> 100
+    x-axis ["Before recommending", "After recommending", "Only if the client asks"]
+    y-axis 0 --> 100
     bar [17, 49, 34]
 ```
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"xyChart": {"backgroundColor": "transparent", "plotColorPalette": "#2E6A4E", "titleColor": "#8A8F87", "xAxisLabelColor": "#8A8F87", "yAxisLabelColor": "#8A8F87", "dataLabelColor": "#FFFFFF"}}, "xyChart": {"width": 720, "height": 240, "showDataLabel": true, "titleFontSize": 18, "xAxis": {"showTick": false, "showAxisLine": false, "labelFontSize": 15}, "yAxis": {"showLabel": false, "showTick": false, "showAxisLine": false, "showTitle": false}}}}%%
 xychart-beta horizontal
     title "What vets say (%)"
-    x-axis ["Clients' finances limit the care they can give", "Declined care hurts their team", "Never had training on talking about cost"]
-    y-axis "Percent of vets" 0 --> 100
+    x-axis ["Finances limit the care", "Declined care hurts the team", "No training on cost talks"]
+    y-axis 0 --> 100
     bar [94, 76, 48]
 ```
 
