@@ -1,8 +1,18 @@
 # PetVet
 
-PetVet is a two-sided, mobile-first web app that connects dog owners and solo vets, with urgency triage, upfront cost estimates, and local financial aid built into the booking flow.
+**Track: Health, Sustainability & Society** · Badger BuildFest 2026 (UW–Madison)
 
-> *Turning a scary, surprise vet bill into a planned conversation.*
+Dog owners see how urgent it is, what it costs nearby, and who can help pay, before the visit. Their vet gets the request with the budget attached.
+
+> *"This is a pet healthcare crisis that requires urgent attention."*
+> — Aimee Gilbreath, President, PetSmart Charities ([2025](https://petsmartcharities.org/press-releases/new-study-finds-more-than-half-of-u-s-pet-parents-skip-or-decline-needed-veterinary-care))
+
+## Challenges We're Entering
+
+| Challenge | Prizes | What it asks | How PetVet answers it |
+|-----------|--------|--------------|-----------------------|
+| **Owner-Side Communication & Decision Support: The Cost-of-Care Conversation** | 1st $500 · 2nd $250 | More than half of U.S. pet owners skip or decline recommended care, often over cost. How might you turn the conversation from sticker shock into an informed, shared decision between owner and vet? | The owner sees urgency and published local prices **before** the visit. Their budget and aid plan travel with the booking request, so the vet knows the constraints before recommending care. An "apply before you pay" checklist tells the owner what to ask the vet for. |
+| **Open Venture** | 1st $500 · 2nd $250 | Real venture potential: market signal, founder-market fit, differentiation, and a path beyond the weekend. | A $158B U.S. pet industry with a documented care gap; the only flow we found that joins urgency, local price, financial aid, and the vet; a path from Madison independents to Wisconsin to national. See [Open Venture](#open-venture). |
 
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-Vet_App-3178C6?logo=typescript&logoColor=white)
@@ -12,8 +22,6 @@ PetVet is a two-sided, mobile-first web app that connects dog owners and solo ve
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-RLS_%2B_Triggers-4169E1?logo=postgresql&logoColor=white)
 ![Gemini](https://img.shields.io/badge/Gemini-Price_Matching-8E75B2?logo=googlegemini&logoColor=white)
 ![Cloudflare](https://img.shields.io/badge/Cloudflare-Quick_Tunnel-F38020?logo=cloudflare&logoColor=white)
-
-Built at **Badger BuildFest 2026** (UW–Madison) for the **Health, Sustainability & Society** track.
 
 PetVet was built around a simple problem: a dog gets sick, and the owner has no idea how serious it is or what the visit will cost until they are already at the clinic. A single procedure can run from a few hundred to several thousand dollars with no warning. Lower-income owners delay treatment, take on debt, or give up their pet. At the same time, there is no easy way to compare local vets on trust or price, and new vets starting their own practice have no easy way to reach new clients.
 
@@ -27,14 +35,6 @@ PetVet was built around a simple problem: a dog gets sick, and the owner has no 
 <sub>Sources: PetSmart Charities–Gallup State of Pet Care Study, 2025; Banfield Pet Hospital; Mars Veterinary Health workforce projections.</sub>
 
 PetVet puts both sides in one app. The owner side (**PawPlan**) tells an owner how urgent their dog's symptoms are, what the visit is likely to cost, and where to find financial help, then sends a booking request. The vet side receives that request live, along with the triage summary, and gives a solo vet a calendar, a patient history, and a chat with the owner. Both open from one link or QR code in a phone browser, with nothing to install.
-
-## Challenges We're Entering
-
-| Challenge | Prizes | What it asks | How PetVet answers it |
-|-----------|--------|--------------|-----------------------|
-| **Owner-Side Communication & Decision Support: The Cost-of-Care Conversation** | 1st $500 · 2nd $250 | More than half of U.S. pet owners skip or decline recommended care, often over cost. How might you turn the conversation from sticker shock into an informed, shared decision between owner and vet? | The owner sees urgency and published local prices **before** the visit. Their budget and aid plan travel with the booking request, so the vet knows the constraints before recommending care. An "apply before you pay" checklist tells the owner what to ask the vet for. |
-| **Open Venture** | 1st $500 · 2nd $250 | Real venture potential: market signal, founder-market fit, differentiation, and a path beyond the weekend. | A $158B U.S. pet industry with a documented care gap; the only flow we found that joins urgency, local price, financial aid, and the vet; a path from Madison independents to Wisconsin to national. See [Open Venture](#open-venture). |
-| **Track: Health, Sustainability & Society** | | | Access to care for pets of lower-income owners, and a way for new solo vets to stay in business. |
 
 ## The Problems We're Solving
 
