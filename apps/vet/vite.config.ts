@@ -88,6 +88,7 @@ const serveOwnerSide: Connect.NextHandleFunction = (req, res, next) => {
   }
   if (!file.startsWith(clientDir) || !existsSync(file) || statSync(file).isDirectory()) return next();
   res.setHeader('Content-Type', TYPES[extname(file)] ?? 'application/octet-stream');
+  res.setHeader('Cache-Control', 'no-store');
   res.end(readFileSync(file));
 };
 
