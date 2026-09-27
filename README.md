@@ -16,6 +16,12 @@ Dog owners see how urgent it is, what it costs nearby, and who can help pay, bef
 > *"This is a pet healthcare crisis that requires urgent attention."*
 > — Aimee Gilbreath, President, PetSmart Charities ([2025](https://petsmartcharities.org/press-releases/new-study-finds-more-than-half-of-u-s-pet-parents-skip-or-decline-needed-veterinary-care))
 
+<p align="center">
+  <img src="docs/demo-qr.png" alt="QR code for the PetVet demo" width="220"><br>
+  <b>Scan to try the demo</b><br>
+  <a href="https://inflation-players-fellowship-jane.trycloudflare.com/owner/#home">https://inflation-players-fellowship-jane.trycloudflare.com/owner/#home</a>
+</p>
+
 ## Challenges
 
 - **Cost-of-Care Conversation** — turns sticker shock into a shared decision: the vet sees the owner's budget and aid plan before recommending care.
