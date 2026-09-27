@@ -24,7 +24,7 @@ export default function Patients() {
             <div className="grow">
               <div className="strong big">{p.dog.name}</div>
               <div className="small muted ellipsis">
-                {p.dog.breed} · {p.owner.name}
+                {[p.dog.breed, p.owner.name].filter(Boolean).join(' · ')}
               </div>
             </div>
             <span className="small muted">

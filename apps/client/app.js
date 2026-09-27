@@ -2,6 +2,7 @@ import {
   SYMPTOMS, assistance, detailQuestion, emergencyPlan, evaluate, petIsValid,
   summaryDocument, urgencyInfo
 } from "./care.js";
+import { bookingStatus, cancelBooking, loadClinicsWithSlots, requestBooking } from "./backend.js";
 
 const KEY = "pawplan.web.v1";
 const EMERGENCY_CHECKS = [
@@ -26,6 +27,59 @@ const ICONS = {
 const state = load();
 const app = document.querySelector("#app");
 
+// Clinics and their open times come from the database (backend.js), not from hard-coded lists.
+state.clinicData = { status: "idle", list: [], error: "" };
+state.chosenClinic = null;
+state.chosenSlot = null;
+
+async function loadClinics() {
+  if (state.clinicData.status === "idle" || state.clinicData.status === "error") {
+    state.clinicData = { ...state.clinicData, status: "loading" };
+    if (state.view === "booking") render();
+  }
+  try {
+    const list = await loadClinicsWithSlots(14);
+    state.clinicData = { status: "ready", list, error: "" };
+    // A time someone else just took disappears from the list, so drop it from the selection too.
+    const clinic = list.find((item) => item.id === state.chosenClinic);
+    if (state.chosenSlot && !clinic?.slots.some((slot) => slotKey(slot) === state.chosenSlot)) state.chosenSlot = null;
+  } catch (error) {
+    state.clinicData = { status: "error", list: state.clinicData.list, error: error.message };
+  }
+  if (state.view === "booking") render();
+}
+
+state.requesting = false;
+state.requestError = "";
+state.confirmCancel = false;
+
+/** The booking this phone asked for, while it still matters (waiting or confirmed). */
+function activeBooking() {
+  const booking = state.plan?.booking;
+  return booking && ["pending", "accepted"].includes(booking.status) ? booking : null;
+}
+
+// Check the clinic's answer: pending → accepted / declined. Runs on the plan and booking screens.
+async function refreshBookingStatus() {
+  const booking = activeBooking();
+  if (!booking || !booking.id) return;
+  try {
+    const latest = await bookingStatus(booking.id);
+    if (latest && latest.status !== booking.status) {
+      state.plan.booking = { ...booking, status: latest.status };
+      save();
+      if (state.view === "booking" || state.view === "plan") render();
+    }
+  } catch { /* offline for a moment: try again on the next tick */ }
+}
+setInterval(() => {
+  if ((state.view === "booking" || state.view === "plan") && document.visibilityState === "visible") refreshBookingStatus();
+}, 8000);
+
+// Keep open times fresh while the booking screen is showing.
+setInterval(() => { if (state.view === "booking" && document.visibilityState === "visible") loadClinics(); }, 30000);
+document.addEventListener("visibilitychange", () => { if (state.view === "booking" && document.visibilityState === "visible") loadClinics(); });
+
 document.body.addEventListener("click", (event) => {
   const go = event.target.closest("[data-go]");
   if (go) {
@@ -44,6 +98,8 @@ function show(view) {
   state.view = view || "home";
   if (state.view === "check" && !state.step) state.step = "pet";
   history.replaceState(null, "", `#${state.view}`);
+  if (state.view === "booking") loadClinics();
+  if (state.view === "booking" || state.view === "plan") refreshBookingStatus();
   render();
   window.scrollTo(0, 0);
 }
@@ -89,6 +145,10 @@ function onInput(event) {
   if (field.id === "petWeight") state.pet.weight = field.value;
   if (field.id === "petZip") state.pet.zipCode = field.value;
   if (field.id === "notes") state.answers.notes = field.value.slice(0, 1500);
+  if (field.id === "ownerName") { state.contact.name = field.value; save(); }
+  if (field.id === "ownerPhone") { state.contact.phone = field.value; save(); }
+  const requestButton = app.querySelector("#requestBooking");
+  if (requestButton) requestButton.disabled = state.requesting || !state.contact.name.trim();
   const button = app.querySelector("#continuePet");
   if (button) button.disabled = !petReady();
   const notesButton = app.querySelector("#continueSymptoms");
@@ -108,6 +168,7 @@ function onClick(event) {
       if (index > 0) { state.step = order[index - 1]; render(); window.scrollTo(0, 0); } else show("home");
       return;
     }
+    if (state.view === "booking" && state.chosenClinic) { state.chosenClinic = null; state.chosenSlot = null; render(); window.scrollTo(0, 0); return; }
     show(state.view === "booking" ? "plan" : "home");
     return;
   }
@@ -145,7 +206,21 @@ function onClick(event) {
     show("plan");
     return;
   }
-  if (action === "book") { show("booking"); return; }
+  if (action === "book") { state.chosenClinic = null; state.chosenSlot = null; show("booking"); return; }
+  if (action === "pick-clinic") { state.chosenClinic = button.dataset.clinic; state.chosenSlot = null; render(); window.scrollTo(0, 0); return; }
+  if (action === "pick-slot") {
+    state.chosenSlot = state.chosenSlot === button.dataset.slot ? null : button.dataset.slot;
+    state.requestError = "";
+    render();
+    app.querySelector("#requestCard")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    return;
+  }
+  if (action === "retry-clinics") { loadClinics(); return; }
+  if (action === "request-booking") { sendRequest(); return; }
+  if (action === "cancel-booking") { state.confirmCancel = true; render(); return; }
+  if (action === "keep-booking") { state.confirmCancel = false; render(); return; }
+  if (action === "confirm-cancel") { cancelRequest(); return; }
+  if (action === "rebook") { state.plan.booking = null; state.confirmCancel = false; save(); state.chosenClinic = null; state.chosenSlot = null; loadClinics(); render(); window.scrollTo(0, 0); return; }
   if (action === "print") { printSummary(); return; }
   if (action === "clear") { localStorage.removeItem(KEY); state.plan = null; state.pet = blankPet(); show("home"); }
 }
@@ -258,7 +333,9 @@ function planView() {
         <div class="row"><p class="eyebrow">Help paying</p><a class="small" href="#resources" data-go="resources">All options</a></div>
         ${assistance.slice(0, 3).map((item) => `<a class="aid-row" href="${esc(item.url)}"><span>${esc(item.name)}</span>${ICONS.chevron}</a>`).join("")}
       </article>
-      <button class="primary" id="bookVisit" data-action="book">Book a visit</button>
+      ${activeBooking()
+        ? `<button class="primary" id="bookVisit" data-go="booking">${activeBooking().status === "accepted" ? "Visit confirmed · see details" : "Request sent · see status"}</button>`
+        : `<button class="primary" id="bookVisit" data-action="book">Book a visit</button>`}
       ${plan.urgency === "monitor" ? `<button class="ghost" data-action="start">Symptoms got worse — check again</button>` : ""}
       <button class="ghost" data-action="print">Print or save summary</button>
     </section>`;
@@ -294,10 +371,201 @@ function relatedMarkup(samples) {
 
 function booking() {
   if (!state.plan || state.plan.urgency === "emergency") return emergencyView();
+  if (state.plan.booking) return bookingStatusView(state.plan.booking);
+  const { status, list, error } = state.clinicData;
+  if (status === "loading" || status === "idle") return `<section class="stack"><p class="muted">Loading clinics…</p></section>`;
+  if (status === "error" && !list.length) {
+    return `
+      <section class="stack">
+        <div class="empty"><div class="empty-title">Couldn’t load clinics</div><p>${esc(error)}</p></div>
+        <button class="ghost" data-action="retry-clinics">Try again</button>
+      </section>`;
+  }
+  if (!list.length) {
+    return `
+      <section class="stack">
+        <div class="empty"><div class="empty-title">No clinics yet</div><p>Clinics will show here once vets join.</p></div>
+      </section>`;
+  }
+  const clinic = list.find((item) => item.id === state.chosenClinic);
+  return clinic ? clinicTimes(clinic) : clinicList(list);
+}
+
+/** Every clinic from the database, soonest opening first. */
+function clinicList(list) {
+  const sorted = [...list].sort((a, b) => (a.slots[0] ? slotKey(a.slots[0]) : "~").localeCompare(b.slots[0] ? slotKey(b.slots[0]) : "~") || a.clinic.localeCompare(b.clinic));
   return `
     <section class="stack">
-      <div class="empty"><div class="empty-title">No clinics yet</div><p>Clinics will show here once vets join.</p></div>
+      <p class="muted">Open times for the next two weeks. Times that are already requested or booked are hidden.</p>
+      ${sorted.map((item) => `
+        <button class="card" data-action="pick-clinic" data-clinic="${esc(item.id)}" id="clinic_${esc(item.id)}">
+          <strong>${esc(item.clinic)}</strong>
+          <p class="muted">${esc([item.name, item.location].filter(Boolean).join(" · "))}</p>
+          <p>${item.slots.length ? `Next open: ${esc(formatDay(item.slots[0].date))} · ${esc(formatHour(item.slots[0].start))}` : "No open times in the next two weeks"}</p>
+        </button>`).join("")}
     </section>`;
+}
+
+/** One clinic's open times, grouped by day. */
+function clinicTimes(clinic) {
+  const days = [];
+  for (const slot of clinic.slots) {
+    if (days[days.length - 1]?.date !== slot.date) days.push({ date: slot.date, slots: [] });
+    days[days.length - 1].slots.push(slot);
+  }
+  const chosen = clinic.slots.find((slot) => slotKey(slot) === state.chosenSlot);
+  return `
+    <section class="stack">
+      <div>
+        <h1>${esc(clinic.clinic)}</h1>
+        <p class="muted">${esc([clinic.name, clinic.location].filter(Boolean).join(" · "))}</p>
+      </div>
+      ${days.length ? days.map((day) => `
+        <article class="card">
+          <h2>${esc(formatDay(day.date))}</h2>
+          <div class="slots">
+            ${day.slots.map((slot) => `<button class="slot" data-action="pick-slot" data-slot="${esc(slotKey(slot))}" aria-pressed="${slotKey(slot) === state.chosenSlot}">${esc(formatHour(slot.start))}</button>`).join("")}
+          </div>
+        </article>
+        ${chosen && chosen.date === day.date ? requestForm(clinic, chosen) : ""}`).join("") : `<div class="empty"><div class="empty-title">Fully booked</div><p>No open times in the next two weeks.</p></div>`}
+    </section>`;
+}
+
+function slotKey(slot) {
+  return `${slot.date}T${String(Math.round(slot.start * 100)).padStart(4, "0")}`; // 9.5 → "…T0950", sorts by time
+}
+
+/** "2026-09-28" → "Mon, Sep 28" (read as a calendar date, not shifted by time zone). */
+function formatDay(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+}
+
+/** Name + phone, then send. The clinic gets the request with the dog's check summary. */
+function requestForm(clinic, slot) {
+  return `
+    <article class="card" id="requestCard">
+      <h2>Request ${esc(formatDay(slot.date))} at ${esc(formatHour(slot.start))}</h2>
+      <p class="note">${esc(clinic.clinic)} will see ${esc(displayName(state.plan.pet))}’s check summary and confirm or suggest another time.</p>
+      <label class="field"><span>Your name</span><input id="ownerName" value="${esc(state.contact.name)}" autocomplete="name" placeholder="First and last name"></label>
+      <label class="field"><span>Phone</span><input id="ownerPhone" value="${esc(state.contact.phone)}" autocomplete="tel" inputmode="tel" placeholder="So the clinic can reach you"></label>
+      ${state.requestError ? `<p class="error" role="alert">${esc(state.requestError)}</p>` : ""}
+      <button class="primary" id="requestBooking" data-action="request-booking" ${state.requesting || !state.contact.name.trim() ? "disabled" : ""}>${state.requesting ? "Sending…" : "Request this time"}</button>
+    </article>`;
+}
+
+async function sendRequest() {
+  const clinic = state.clinicData.list.find((item) => item.id === state.chosenClinic);
+  const slot = clinic?.slots.find((item) => slotKey(item) === state.chosenSlot);
+  if (!clinic || !slot || state.requesting) return;
+  state.requesting = true;
+  state.requestError = "";
+  render();
+  try {
+    const pet = state.plan.pet;
+    const saved = await requestBooking({
+      vetId: clinic.id,
+      date: slot.date,
+      start: slot.start,
+      ownerName: state.contact.name.trim(),
+      ownerPhone: state.contact.phone.trim(),
+      dog: { name: displayName(pet), age: pet.age ? `${pet.age} yrs` : "", weight: pet.weight ? `${pet.weight} lb` : "" },
+      triage: triageSummary(state.plan)
+    });
+    state.plan.booking = { ...saved, vetId: clinic.id, clinicName: clinic.clinic, vetName: clinic.name, location: clinic.location };
+    state.chosenClinic = null;
+    state.chosenSlot = null;
+    save();
+  } catch (error) {
+    state.requestError = error.message;
+    loadClinics(); // the time may have just been taken
+  }
+  state.requesting = false;
+  render();
+  window.scrollTo(0, 0);
+}
+
+async function cancelRequest() {
+  const booking = state.plan?.booking;
+  if (!booking) return;
+  try {
+    await cancelBooking(booking.id);
+    state.plan.booking = { ...booking, status: "cancelled" };
+    save();
+  } catch (error) {
+    state.requestError = error.message;
+  }
+  state.confirmCancel = false;
+  render();
+}
+
+/** What the vet sees on the request: urgency, symptoms and the dog's basics. */
+function triageSummary(plan) {
+  const info = urgencyInfo(plan.urgency);
+  return {
+    level: info.level,
+    urgency: plan.urgency,
+    title: info.title,
+    timing: info.timing,
+    symptoms: plan.answers?.symptoms || [],
+    notes: plan.answers?.notes || "",
+    related: plan.samples?.conditions || [],
+    pet: { name: displayName(plan.pet), age: plan.pet?.age ?? "", weight: plan.pet?.weight ?? "" }
+  };
+}
+
+/** After sending: waiting → confirmed / declined / cancelled. Updates by itself (refreshBookingStatus). */
+function bookingStatusView(booking) {
+  const when = `${formatDay(booking.date)} · ${formatHour(booking.start)}`;
+  const where = [booking.vetName, booking.location].filter(Boolean).join(" · ");
+  const header = (badge, cls = "") => `
+    <p class="badge ${cls}">${badge}</p>
+    <h2>${esc(booking.clinicName)}</h2>
+    <p><strong>${esc(when)}</strong></p>
+    ${where ? `<p class="muted">${esc(where)}</p>` : ""}`;
+  const cancelButtons = state.confirmCancel
+    ? `<p class="note">Cancel this visit? The time opens up for other owners.</p>
+       <button class="primary emergency" data-action="confirm-cancel">Yes, cancel</button>
+       <button class="ghost" data-action="keep-booking">Keep it</button>`
+    : `<button class="ghost" data-action="cancel-booking">Cancel ${booking.status === "accepted" ? "visit" : "request"}</button>`;
+  const error = state.requestError ? `<p class="error" role="alert">${esc(state.requestError)}</p>` : "";
+
+  if (booking.status === "pending") {
+    return `
+      <section class="stack" id="bookingStatus">
+        <article class="card">${header("Request sent")}
+          <p class="note">Waiting for the clinic to confirm. They can see ${esc(displayName(state.plan.pet))}’s check summary. This page updates by itself.</p>
+        </article>
+        ${error}${cancelButtons}
+      </section>`;
+  }
+  if (booking.status === "accepted") {
+    return `
+      <section class="stack" id="bookingStatus">
+        <article class="card">${header("Confirmed", "ok")}
+          <p class="note">Bring your printed summary to the visit.</p>
+        </article>
+        <button class="primary" data-action="print">Print or save summary</button>
+        ${error}${cancelButtons}
+      </section>`;
+  }
+  const ended = {
+    declined: ["Not available", "The clinic couldn’t take this time. Pick another time or another clinic."],
+    cancelled: ["Cancelled", "This visit was cancelled."],
+    completed: ["Visit done", "This visit is complete."]
+  }[booking.status] || ["Closed", ""];
+  return `
+    <section class="stack" id="bookingStatus">
+      <article class="card">${header(ended[0], "warn")}<p class="note">${esc(ended[1])}</p></article>
+      <button class="primary" data-action="rebook">${booking.status === "completed" ? "Book another visit" : "Pick another time"}</button>
+    </section>`;
+}
+
+/** 9.5 → "9:30 AM" */
+function formatHour(hour) {
+  const h = Math.floor(hour);
+  const min = Math.round((hour - h) * 60);
+  return `${h % 12 || 12}:${String(min).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
 }
 
 
@@ -392,14 +660,15 @@ function esc(value) {
 function blankPet() { return { name: "", age: "", weight: "", zipCode: "" }; }
 function blankAnswers() { return { symptoms: [], notes: "", duration: null, energy: null, intake: null, detail: null }; }
 function load() {
-  const fresh = { view: "home", step: "pet", pet: blankPet(), answers: blankAnswers(), emergency: {}, plan: null };
+  const fresh = { view: "home", step: "pet", pet: blankPet(), answers: blankAnswers(), emergency: {}, plan: null, contact: { name: "", phone: "" } };
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) || "null");
     if (saved?.plan) fresh.plan = saved.plan;
     if (saved?.pet) fresh.pet = { ...fresh.pet, ...saved.pet };
+    if (saved?.contact) fresh.contact = { ...fresh.contact, ...saved.contact };
   } catch { /* ignore broken local data */ }
   return fresh;
 }
 function save() {
-  localStorage.setItem(KEY, JSON.stringify({ pet: state.pet, plan: state.plan }));
+  localStorage.setItem(KEY, JSON.stringify({ pet: state.pet, plan: state.plan, contact: state.contact }));
 }

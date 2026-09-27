@@ -1,13 +1,16 @@
 /** Symptom check rules, urgency levels, related conditions (from the health-record datasets), published Wisconsin price estimates, and financial-assistance programs for PawPlan. */
 
-import { clinics as clinicList, pricingRecords as priceList } from "./pricing-data.js";
+// DISCONNECTED for now: the hard-coded Wisconsin clinics and published prices in pricing-data.js.
+// That data will move from the spreadsheet into the database. To reconnect, uncomment this import
+// and the two lines marked below.
+// import { clinics as clinicList, pricingRecords as priceList } from "./pricing-data.js";
 import { ZIP_CENTROIDS } from "./zip-centroids.js";
 import { SYMPTOM_ROWS } from "./pet-symptoms.js";
 import { DISEASE_CASES } from "./disease-cases.js";
 
 // Price estimate: published Wisconsin clinic prices ranked by distance from the owner's ZIP (pricing-data.js, zip-centroids.js).
-export const clinics = clinicList;
-export const pricingRecords = priceList;
+export const clinics = [];        // was: clinicList  (DISCONNECTED, see top of file)
+export const pricingRecords = []; // was: priceList   (DISCONNECTED, see top of file)
 
 export const COPY = {
   unavailable: "Local pricing data is not yet available for this area.",

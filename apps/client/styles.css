@@ -164,3 +164,12 @@ summary { cursor: pointer; font-weight: 700; color: var(--accent); }
 .cost-details summary { list-style: none; cursor: pointer; }
 .cost-details summary::-webkit-details-marker { display: none; }
 .cost-details .link { color: var(--accent); font-weight: 600; }
+
+/* open appointment times (booking screen) */
+.slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.slots .slot { justify-content: center; text-align: center; padding: 0 8px; font-size: 15px; }
+
+/* booking request + status */
+.error { color: var(--badge); font-size: 14px; }
+.badge.ok { background: var(--accent-soft); color: var(--accent-dark); }
+.badge.warn { background: var(--warn-soft); color: var(--warn-text); }

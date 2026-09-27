@@ -175,3 +175,14 @@ p { margin: 0; }
 .role-body { font-size: 14px; line-height: 1.4; color: var(--muted); }
 .welcome-foot { text-align: center; font-size: 13px; color: var(--faint); margin-top: 12px; }
 .auth-back { align-self: flex-start; display: flex; align-items: center; gap: 2px; min-height: 44px; padding: 0; border: 0; background: transparent; color: var(--accent); font-size: 16px; font-weight: 600; }
+
+/* open (unbooked) appointment times */
+.block.open { background: transparent; border: 1px dashed var(--border); color: var(--muted); padding: 6px 12px; }
+.open-count { align-self: flex-start; border: 0; background: transparent; padding: 0 4px; min-height: 32px; color: var(--accent); font-size: 14px; font-weight: 600; }
+
+/* owner's symptom check on a request */
+.triage { display: flex; flex-direction: column; gap: 4px; border-radius: 12px; padding: 10px 14px; background: var(--accent-soft); color: var(--ink); font-size: 15px; }
+.triage-head { display: flex; align-items: center; gap: 8px; }
+.triage-level { width: 24px; height: 24px; flex-shrink: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; background: var(--accent); color: #fff; }
+.triage.level-3, .triage.level-4 { background: #fbe9df; }
+.triage.level-3 .triage-level, .triage.level-4 .triage-level { background: var(--badge); }

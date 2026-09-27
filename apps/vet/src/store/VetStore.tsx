@@ -2,12 +2,13 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 
 import { addAppointmentToCalendar } from '@/lib/calendar';
 import { supabase } from '@/lib/supabase';
-import type { Appointment, BookingRequest, Message, Patient } from '@/types';
+import type { Appointment, BookingRequest, Message, OpenSlot, Patient, Triage } from '@/types';
 
 type VetStore = {
   requests: BookingRequest[];
   appointments: Appointment[]; // sorted by date and time
   patients: Patient[];
+  openSlots: OpenSlot[]; // free times (Mon–Fri 9–5, 30 min) with no pending/accepted booking, sorted
   messages: Record<string, Message[]>; // keyed by booking id
   calendarAdded: Record<string, boolean>;
   toast: string | null;
@@ -31,6 +32,7 @@ type BookingRow = {
   duration: number | string;
   status: Status;
   visit_type: string;
+  triage_summary: Triage | null;
   dog: { id: string; name: string; breed: string; age: string; weight: string } | null;
   owner: { name: string; phone: string } | null;
 };
@@ -39,7 +41,7 @@ type MessageRow = { id: string; booking_id: string; sender: 'vet' | 'owner'; tex
 
 /** Booking plus its dog and owner, in one request. */
 const BOOKING_SELECT =
-  'id, date, start, duration, status, visit_type, dog:dogs(id, name, breed, age, weight), owner:owners(name, phone)';
+  'id, date, start, duration, status, visit_type, triage_summary, dog:dogs(id, name, breed, age, weight), owner:owners(name, phone)';
 
 /** Statuses the vet app shows: pending → Requests, accepted → Appointments + Chat, completed → Patients. */
 const SHOWN: Status[] = ['pending', 'accepted', 'completed'];
@@ -52,6 +54,7 @@ function toRequest(b: BookingRow): BookingRequest {
     date: b.date,
     start: Number(b.start),
     duration: Number(b.duration),
+    triage: b.triage_summary,
   };
 }
 
@@ -93,6 +96,7 @@ function addMessage(m: Record<string, Message[]>, bookingId: string, msg: Messag
 export function VetStoreProvider({ vetId, children }: { vetId: string; children: ReactNode }) {
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [messages, setMessages] = useState<Record<string, Message[]>>({});
+  const [openSlots, setOpenSlots] = useState<OpenSlot[]>([]);
   const [calendarAdded, setCalendarAdded] = useState<Record<string, boolean>>({});
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -103,8 +107,22 @@ export function VetStoreProvider({ vetId, children }: { vetId: string; children:
     toastTimer.current = setTimeout(() => setToast(null), 3200);
   }, []);
 
+  // Open slots come from the database function open_slots() (supabase/migrations/0002_open_slots.sql).
+  const loadSlots = useCallback(async () => {
+    const { data, error } = await supabase.rpc('open_slots', { p_vet_id: vetId, p_days: 60 });
+    if (error) return; // older database without 0002: just show no open slots
+    setOpenSlots(
+      (data as { date: string; start: number | string; duration: number | string }[]).map((r) => ({
+        date: r.date,
+        start: Number(r.start),
+        duration: Number(r.duration),
+      })),
+    );
+  }, [vetId]);
+
   // Full load: on start, and whenever the phone comes back to the app (realtime can miss events while asleep).
   const loadAll = useCallback(async () => {
+    loadSlots();
     const [b, m] = await Promise.all([
       supabase.from('bookings').select(BOOKING_SELECT).eq('vet_id', vetId).in('status', SHOWN),
       supabase.from('messages').select('id, booking_id, sender, text, created_at').order('created_at'),
@@ -117,13 +135,14 @@ export function VetStoreProvider({ vetId, children }: { vetId: string; children:
     const grouped: Record<string, Message[]> = {};
     for (const row of m.data as MessageRow[]) (grouped[row.booking_id] ??= []).push(toMessage(row));
     setMessages(grouped);
-  }, [vetId, showToast]);
+  }, [vetId, showToast, loadSlots]);
 
   // Re-read one booking (with dog and owner) after a realtime change.
   const refreshBooking = useCallback(
     async (id: string, isNew: boolean) => {
       const { data } = await supabase.from('bookings').select(BOOKING_SELECT).eq('id', id).maybeSingle();
       const row = data as unknown as BookingRow | null;
+      loadSlots(); // a new, declined or cancelled booking changes which times are free
       setBookings((list) => {
         const rest = list.filter((b) => b.id !== id);
         return row && SHOWN.includes(row.status) ? [...rest, row] : rest;
@@ -132,7 +151,7 @@ export function VetStoreProvider({ vetId, children }: { vetId: string; children:
         showToast(`New request: ${row.owner?.name ?? 'An owner'} wants to book ${row.dog?.name ?? 'their dog'}.`);
       }
     },
-    [showToast],
+    [showToast, loadSlots],
   );
 
   useEffect(() => {
@@ -188,9 +207,10 @@ export function VetStoreProvider({ vetId, children }: { vetId: string; children:
         showToast(`Couldn't save: ${error.message}`);
       } else {
         showToast(done);
+        loadSlots();
       }
     },
-    [bookings, showToast],
+    [bookings, showToast, loadSlots],
   );
 
   const acceptRequest = useCallback(
@@ -254,6 +274,7 @@ export function VetStoreProvider({ vetId, children }: { vetId: string; children:
     requests,
     appointments,
     patients,
+    openSlots,
     messages,
     calendarAdded,
     toast,

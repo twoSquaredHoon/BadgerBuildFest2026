@@ -24,6 +24,9 @@ What you end up with:
 1. In Supabase, open **SQL Editor → New query**.
 2. Paste the whole contents of `supabase/migrations/0001_init.sql` and click **Run**. It should say "Success. No rows returned".
 3. Check **Table Editor**: you should see `vets`, `owners`, `dogs`, `bookings`, `messages`, `cost_estimates`.
+4. Do the same with `supabase/migrations/0002_open_slots.sql` (**New query** → paste → **Run**). It gives every vet open appointment times, Mon–Fri 9:00 AM–5:00 PM in 30-minute slots, lets the owner app list clinics, and blocks double-booking. Times that are `pending` or `accepted` are hidden automatically.
+5. Do the same with `supabase/migrations/0003_booking_requests.sql`. It lets pet owners send a booking request from the owner app (one database function, `request_booking`, saves the owner, dog and booking together), and refuses times that are taken, outside open hours, or already past.
+6. Turn on **Authentication → Sign In / Providers → Allow anonymous sign-ins** and save. Owners don't make an account: each phone is signed in quietly the first time it books, so the owner only types a name and phone number.
 
 Run it only once. To start over (this deletes all app data), run this in the SQL Editor, then run the file again:
 

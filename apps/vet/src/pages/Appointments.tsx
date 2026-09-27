@@ -5,13 +5,13 @@ import { ChevronLeft, ChevronRight } from '@/components/icons';
 import { AppointmentRow, SectionLabel, Segmented } from '@/components/ui';
 import { addDays, dayLong, dayShort, DOW_SHORT, formatRange, hourLabel, MONTHS_LONG, MONTHS_SHORT, parseDate, todayISO, toISO } from '@/lib/dates';
 import { useVetStore } from '@/store/VetStore';
-import type { Appointment } from '@/types';
+import type { Appointment, OpenSlot } from '@/types';
 
 type CalView = 'month' | 'week' | 'day';
 const HOURS = Array.from({ length: 10 }, (_, i) => 8 + i); // 8 AM – 5 PM
 
 export default function Appointments() {
-  const { appointments } = useVetStore();
+  const { appointments, openSlots } = useVetStore();
   const today = todayISO();
   const [view, setView] = useState<CalView>('week');
   const [cursor, setCursor] = useState(today);
@@ -19,6 +19,7 @@ export default function Appointments() {
 
   const cur = parseDate(cursor);
   const onDay = (iso: string) => appointments.filter((a) => a.date === iso);
+  const openOn = (iso: string) => openSlots.filter((s) => s.date === iso);
 
   const shift = (dir: number) => {
     let next: Date;
@@ -68,7 +69,9 @@ export default function Appointments() {
         </button>
       </div>
 
-      {view === 'month' && <MonthView cursor={cur} today={today} picked={picked} onPick={setPicked} countFor={(iso) => onDay(iso).length} list={onDay(picked)} />}
+      {view === 'month' && (
+        <MonthView cursor={cur} today={today} picked={picked} onPick={setPicked} countFor={(iso) => onDay(iso).length} list={onDay(picked)} open={openOn(picked).length} />
+      )}
 
       {view === 'week' && (
         <div className="stack">
@@ -86,27 +89,38 @@ export default function Appointments() {
           </div>
           {weekDays.map((iso) => {
             const list = onDay(iso);
-            if (!list.length) return null;
+            const open = openOn(iso).length;
+            if (!list.length && !open) return null;
             return (
               <div key={iso} className="stack tight">
                 <SectionLabel>{dayLong(iso)}</SectionLabel>
                 {list.map((a) => <AppointmentRow key={a.id} appt={a} />)}
+                {open > 0 && <OpenCount n={open} onClick={() => { setCursor(iso); setView('day'); }} />}
               </div>
             );
           })}
-          {weekDays.every((iso) => onDay(iso).length === 0) && <p className="sub">No appointments this week.</p>}
+          {weekDays.every((iso) => onDay(iso).length === 0 && openOn(iso).length === 0) && <p className="sub">No appointments or open times this week.</p>}
         </div>
       )}
 
-      {view === 'day' && <DayView list={onDay(cursor)} />}
+      {view === 'day' && <DayView list={onDay(cursor)} open={openOn(cursor)} />}
     </div>
   );
 }
 
+/** "12 open slots" line under a day; tapping it opens that day. */
+function OpenCount({ n, onClick }: { n: number; onClick?: () => void }) {
+  return (
+    <button type="button" className="open-count" onClick={onClick}>
+      {n} open {n === 1 ? 'slot' : 'slots'}
+    </button>
+  );
+}
+
 function MonthView({
-  cursor, today, picked, onPick, countFor, list,
+  cursor, today, picked, onPick, countFor, list, open,
 }: {
-  cursor: Date; today: string; picked: string; onPick: (iso: string) => void; countFor: (iso: string) => number; list: Appointment[];
+  cursor: Date; today: string; picked: string; onPick: (iso: string) => void; countFor: (iso: string) => number; list: Appointment[]; open: number;
 }) {
   const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
   const start = addDays(first, -first.getDay());
@@ -136,11 +150,12 @@ function MonthView({
       <SectionLabel>{dayLong(picked)}</SectionLabel>
       {list.map((a) => <AppointmentRow key={a.id} appt={a} />)}
       {list.length === 0 && <p className="sub">No appointments this day.</p>}
+      {open > 0 && <OpenCount n={open} />}
     </div>
   );
 }
 
-function DayView({ list }: { list: Appointment[] }) {
+function DayView({ list, open }: { list: Appointment[]; open: OpenSlot[] }) {
   const navigate = useNavigate();
   return (
     <div className="card day">
@@ -157,6 +172,13 @@ function DayView({ list }: { list: Appointment[] }) {
                     {formatRange(a.start, a.duration)} · {a.owner.name}
                   </span>
                 </button>
+              ))}
+            {open
+              .filter((s) => Math.floor(s.start) === h)
+              .map((s) => (
+                <div key={s.start} className="block open">
+                  <span className="small">Open · {formatRange(s.start, s.duration)}</span>
+                </div>
               ))}
           </div>
         </div>

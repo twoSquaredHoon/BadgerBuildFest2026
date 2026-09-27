@@ -1,7 +1,7 @@
 import { useNavigate, useParams } from 'react-router';
 
 import { CheckIcon } from '@/components/icons';
-import { Avatar, DetailHeader, EmptyState, InfoRows } from '@/components/ui';
+import { Avatar, DetailHeader, EmptyState, InfoRows, TriageSummary } from '@/components/ui';
 import { dayLong, formatRange } from '@/lib/dates';
 import { useVetStore } from '@/store/VetStore';
 
@@ -36,6 +36,8 @@ export default function AppointmentDetail() {
           <div className="strong">{dayLong(appt.date)}</div>
           <div className="small">{formatRange(appt.start, appt.duration)}</div>
         </div>
+
+        {appt.triage && <TriageSummary triage={appt.triage} />}
 
         <InfoRows
           rows={[

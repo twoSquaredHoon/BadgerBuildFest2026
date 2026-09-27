@@ -1,4 +1,4 @@
-import { Avatar, EmptyState } from '@/components/ui';
+import { Avatar, EmptyState, TriageSummary } from '@/components/ui';
 import { dayShort, formatRange } from '@/lib/dates';
 import { useVetStore } from '@/store/VetStore';
 
@@ -17,10 +17,11 @@ export default function Requests() {
             <div>
               <div className="pet-name">{r.dog.name}</div>
               <div className="muted">
-                {r.dog.breed} · {r.dog.age} · {r.dog.weight}
+                {[r.dog.breed, r.dog.age, r.dog.weight].filter(Boolean).join(' · ')}
               </div>
             </div>
           </div>
+          {r.triage && <TriageSummary triage={r.triage} />}
           <div className="info-box">
             <div>
               <div className="label">Owner</div>

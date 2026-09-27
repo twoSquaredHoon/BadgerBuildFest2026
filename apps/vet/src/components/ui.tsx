@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 
 import { ChevronLeft, ChevronRight } from '@/components/icons';
 import { formatDuration, formatTime } from '@/lib/dates';
-import type { Appointment } from '@/types';
+import type { Appointment, Triage } from '@/types';
 
 export function Avatar({ letter, size = 44 }: { letter: string; size?: number }) {
   return (
@@ -46,7 +46,7 @@ export function AppointmentRow({ appt }: { appt: Appointment }) {
       <div className="appt-body">
         <div className="strong big">{appt.dog.name}</div>
         <div className="small muted ellipsis">
-          {appt.dog.breed} · {appt.owner.name}
+          {[appt.dog.breed, appt.owner.name].filter(Boolean).join(' · ')}
         </div>
       </div>
       <span className="faint">
@@ -98,4 +98,19 @@ export function DetailHeader({ title, fallback }: { title: string; fallback: str
 
 export function SectionLabel({ children }: { children: ReactNode }) {
   return <div className="section-label">{children}</div>;
+}
+
+/** The owner's symptom check, attached to a booking request. */
+export function TriageSummary({ triage }: { triage: Triage }) {
+  const details = [triage.symptoms.join(', '), triage.notes].filter(Boolean).join(' — ');
+  return (
+    <div className={`triage level-${triage.level}`}>
+      <div className="triage-head">
+        <span className="triage-level">{triage.level}</span>
+        <span className="strong">{triage.title}</span>
+      </div>
+      {details && <div className="small">{details}</div>}
+      {triage.related && triage.related.length > 0 && <div className="small muted">May relate to: {triage.related.join(', ')}</div>}
+    </div>
+  );
 }
