@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 
 import { ChevronLeft, ChevronRight } from '@/components/icons';
 import { formatDuration, formatTime } from '@/lib/dates';
-import type { Appointment, Triage } from '@/types';
+import type { Appointment, Triage, TriageAid } from '@/types';
 
 export function Avatar({ letter, size = 44 }: { letter: string; size?: number }) {
   return (
@@ -111,6 +111,25 @@ export function TriageSummary({ triage }: { triage: Triage }) {
       </div>
       {details && <div className="small">{details}</div>}
       {triage.related && triage.related.length > 0 && <div className="small muted">May relate to: {triage.related.join(', ')}</div>}
+      {triage.aid && <AidNote aid={triage.aid} />}
+    </div>
+  );
+}
+
+/** "On a budget" note: the owner's budget, the aid they plan to use, and what those programs need from the vet. */
+function AidNote({ aid }: { aid: TriageAid }) {
+  const programs = aid.programs ?? [];
+  const fromVet = aid.fromVet ?? [];
+  const onBudget = aid.cover === 'no' || aid.cover === 'unsure' || programs.length > 0;
+  if (!aid.budget && !programs.length) return null;
+  return (
+    <div className="aid-note">
+      <div className="small">
+        {onBudget && <span className="aid-flag">On a budget</span>}
+        {aid.budget && <span className="strong"> Budget: {aid.budget}</span>}
+      </div>
+      {programs.length > 0 && <div className="small">Applying to: {programs.join(', ')}</div>}
+      {fromVet.length > 0 && <div className="small muted">Will ask you for: {fromVet.join(' · ')}</div>}
     </div>
   );
 }

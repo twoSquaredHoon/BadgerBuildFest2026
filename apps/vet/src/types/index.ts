@@ -18,6 +18,15 @@ export type Triage = {
   symptoms: string[];
   notes?: string;
   related?: string[]; // "may relate to" conditions from the health-record match
+  aid?: TriageAid | null;
+};
+
+/** What the owner said about paying (owner app "Help paying" step). */
+export type TriageAid = {
+  cover?: string; // "yes" | "unsure" | "no": can they cover the exam price?
+  budget?: string; // e.g. "Under $100"
+  programs?: string[]; // aid programs they plan to apply to
+  fromVet?: string[]; // documents those programs need from the vet (diagnosis, written estimate…)
 };
 
 export type BookingRequest = {

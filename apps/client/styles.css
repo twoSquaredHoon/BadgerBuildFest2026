@@ -173,3 +173,32 @@ summary { cursor: pointer; font-weight: 700; color: var(--accent); }
 .error { color: var(--badge); font-size: 14px; }
 .badge.ok { background: var(--accent-soft); color: var(--accent-dark); }
 .badge.warn { background: var(--warn-soft); color: var(--warn-text); }
+
+/* ─────────────── Help paying (financial aid) ─────────────── */
+.cover-choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.cover-choices .choice { justify-content: center; padding: 0 8px; }
+.aid-banner { background: var(--warn-soft); color: var(--warn-text); border-radius: 12px; padding: 10px 12px; font-size: 14px; line-height: 1.45; }
+.aid-section { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.aid-section > .eyebrow { padding: 0 2px; }
+select { width: 100%; height: 50px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); padding: 0 12px; font: inherit; font-size: 16px; color: var(--ink); }
+.aid-card { gap: 8px; }
+.aid-card.paused { opacity: 0.75; }
+.aid-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.aid-head h3 { font-size: 16px; }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.pill { display: inline-flex; align-items: center; min-height: 22px; border-radius: 11px; padding: 0 8px; font-size: 12px; font-weight: 700; background: var(--line-soft); color: var(--ink-soft); }
+.pill.likely { background: var(--accent-soft); color: var(--accent-dark); }
+.pill.check { background: var(--warn-soft); color: var(--warn-text); }
+.pill.paused { background: #e6e1d6; color: var(--muted); }
+.reasons { font-size: 14px; gap: 2px; }
+.save-toggle { flex-shrink: 0; min-height: 36px; border-radius: 18px; border: 1px solid var(--accent); background: var(--surface); color: var(--accent); font-size: 14px; font-weight: 700; padding: 0 14px; }
+.save-toggle[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.not-for-this { display: flex; flex-direction: column; gap: 8px; }
+.not-for-this p { margin-top: 8px; font-size: 14px; }
+.warn-line { font-size: 13px; font-weight: 600; color: var(--warn-text); }
+.checklist { display: flex; flex-direction: column; gap: 6px; }
+.check-item { display: flex; align-items: center; gap: 10px; min-height: 40px; border: 0; background: transparent; padding: 0; text-align: left; font-size: 15px; color: var(--ink); }
+.check-item .box { width: 22px; height: 22px; flex-shrink: 0; border-radius: 6px; border: 1.5px solid var(--border); background: var(--surface); }
+.check-item[aria-pressed="true"] .box { background: var(--accent); border-color: var(--accent); box-shadow: inset 0 0 0 4px var(--surface); }
+.check-item[aria-pressed="true"] span:last-child { color: var(--muted); text-decoration: line-through; }
+#aidPlan .eyebrow, #emergencyAid .eyebrow { padding: 0; margin-top: 4px; }

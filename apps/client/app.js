@@ -1,8 +1,10 @@
 import {
-  SYMPTOMS, assistance, detailQuestion, emergencyPlan, evaluate, petIsValid,
+  SYMPTOMS, detailQuestion, emergencyPlan, evaluate, petIsValid,
   summaryDocument, urgencyInfo
 } from "./care.js";
 import { bookingStatus, cancelBooking, loadClinicsWithSlots, requestBooking } from "./backend.js";
+import { AID_ORGS, BUDGET_OPTIONS, INCOME_OPTIONS, aidChecklist, aidOrg, clinicWarnings, estimateHigh, matchAid, optionLabel } from "./aid.js";
+import { WI_COUNTIES, countyForZip } from "./zip-counties.js";
 
 const KEY = "pawplan.web.v1";
 const EMERGENCY_CHECKS = [
@@ -12,7 +14,7 @@ const EMERGENCY_CHECKS = [
 ];
 
 const TAB_TITLES = { home: "Home", plan: "My plan", resources: "Resources", emergency: "Emergency" };
-const FLOW_TITLES = { check: "Symptom check", booking: "Book a visit" };
+const FLOW_TITLES = { check: "Symptom check", aid: "Help paying", booking: "Book a visit" };
 
 const svg = (size, paths) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
 const ICONS = {
@@ -106,7 +108,7 @@ function show(view) {
 
 /** Same page frame as the vet side: tab screens get a large header and a bottom tab bar; step-by-step screens get a back header. */
 function render() {
-  const views = { home, check, plan: planView, emergency: emergencyView, booking, resources };
+  const views = { home, check, plan: planView, aid: aidView, emergency: emergencyView, booking, resources };
   const view = views[state.view] ? state.view : "home";
   const body = views[view]();
   if (FLOW_TITLES[view]) {
@@ -147,6 +149,7 @@ function onInput(event) {
   if (field.id === "notes") state.answers.notes = field.value.slice(0, 1500);
   if (field.id === "ownerName") { state.contact.name = field.value; save(); }
   if (field.id === "ownerPhone") { state.contact.phone = field.value; save(); }
+  if (field.id === "aidCounty" && state.plan) { aidState().county = field.value; save(); render(); return; }
   const requestButton = app.querySelector("#requestBooking");
   if (requestButton) requestButton.disabled = state.requesting || !state.contact.name.trim();
   const button = app.querySelector("#continuePet");
@@ -169,7 +172,7 @@ function onClick(event) {
       return;
     }
     if (state.view === "booking" && state.chosenClinic) { state.chosenClinic = null; state.chosenSlot = null; render(); window.scrollTo(0, 0); return; }
-    show(state.view === "booking" ? "plan" : "home");
+    show(state.view === "booking" || state.view === "aid" ? "plan" : "home");
     return;
   }
   if (action === "start") { state.step = "pet"; show("check"); return; }
@@ -214,6 +217,30 @@ function onClick(event) {
     return;
   }
   if (action === "retry-clinics") { loadClinics(); return; }
+  if (action === "cover") {
+    aidState().cover = button.dataset.value;
+    save();
+    if (button.dataset.value === "yes") render(); else show("aid");
+    return;
+  }
+  if (action === "aid-income") { aidState().income = button.dataset.value; save(); render(); return; }
+  if (action === "aid-budget") { aidState().budget = button.dataset.value; save(); render(); return; }
+  if (action === "aid-toggle") {
+    const aid = aidState();
+    const id = button.dataset.id;
+    aid.shortlist = aid.shortlist.includes(id) ? aid.shortlist.filter((item) => item !== id) : [...aid.shortlist, id];
+    save();
+    render();
+    return;
+  }
+  if (action === "aid-check") {
+    const aid = aidState();
+    const doc = button.dataset.doc;
+    aid.checked = aid.checked.includes(doc) ? aid.checked.filter((item) => item !== doc) : [...aid.checked, doc];
+    save();
+    render();
+    return;
+  }
   if (action === "request-booking") { sendRequest(); return; }
   if (action === "cancel-booking") { state.confirmCancel = true; render(); return; }
   if (action === "keep-booking") { state.confirmCancel = false; render(); return; }
@@ -330,10 +357,7 @@ function planView() {
         <p class="eyebrow">Estimated cost</p>
         ${costMarkup(plan.estimate)}
       </article>
-      <article class="card compact aid">
-        <div class="row"><p class="eyebrow">Help paying</p><a class="small" href="#resources" data-go="resources">All options</a></div>
-        ${assistance.slice(0, 3).map((item) => `<a class="aid-row" href="${esc(item.url)}"><span>${esc(item.name)}</span>${ICONS.chevron}</a>`).join("")}
-      </article>
+      ${coverCard(plan)}
       ${activeBooking()
         ? `<button class="primary" id="bookVisit" data-go="booking">${activeBooking().status === "accepted" ? "Visit confirmed · see details" : "Request sent · see status"}</button>`
         : `<button class="primary" id="bookVisit" data-action="book">Book a visit</button>`}
@@ -405,6 +429,7 @@ function clinicList(list) {
           <strong>${esc(item.clinic)}</strong>
           <p class="muted">${esc([item.name, item.location].filter(Boolean).join(" · "))}</p>
           <p>${item.slots.length ? `Next open: ${esc(formatDay(item.slots[0].date))} · ${esc(formatHour(item.slots[0].start))}` : "No open times in the next two weeks"}</p>
+          ${warningLines(item.clinic)}
         </button>`).join("")}
     </section>`;
 }
@@ -423,6 +448,7 @@ function clinicTimes(clinic) {
         <h1>${esc(clinic.clinic)}</h1>
         <p class="muted">${esc([clinic.name, clinic.location].filter(Boolean).join(" · "))}</p>
       </div>
+      ${warningLines(clinic.clinic)}
       ${days.length ? days.map((day) => `
         <article class="card">
           <h2>${esc(formatDay(day.date))}</h2>
@@ -450,6 +476,7 @@ function requestForm(clinic, slot) {
     <article class="card" id="requestCard">
       <h2>Request ${esc(formatDay(slot.date))} at ${esc(formatHour(slot.start))}</h2>
       <p class="note">${esc(clinic.clinic)} will see ${esc(displayName(state.plan.pet))}’s check summary and confirm or suggest another time.</p>
+      ${aidForVetLine()}
       <label class="field"><span>Your name</span><input id="ownerName" value="${esc(state.contact.name)}" autocomplete="name" placeholder="First and last name"></label>
       <label class="field"><span>Phone</span><input id="ownerPhone" value="${esc(state.contact.phone)}" autocomplete="tel" inputmode="tel" placeholder="So the clinic can reach you"></label>
       ${state.requestError ? `<p class="error" role="alert">${esc(state.requestError)}</p>` : ""}
@@ -513,7 +540,8 @@ function triageSummary(plan) {
     symptoms: plan.answers?.symptoms || [],
     notes: plan.answers?.notes || "",
     related: plan.samples?.conditions || [],
-    pet: { name: displayName(plan.pet), age: plan.pet?.age ?? "", weight: plan.pet?.weight ?? "" }
+    pet: { name: displayName(plan.pet), age: plan.pet?.age ?? "", weight: plan.pet?.weight ?? "" },
+    ...(aidForVet(plan) ? { aid: aidForVet(plan) } : {})
   };
 }
 
@@ -539,6 +567,7 @@ function bookingStatusView(booking) {
         <article class="card">${header("Request sent")}
           <p class="note">Waiting for the clinic to confirm. They can see ${esc(displayName(state.plan.pet))}’s check summary. This page updates by itself.</p>
         </article>
+        ${aidPlanCard(booking)}
         ${error}${cancelButtons}
       </section>`;
   }
@@ -548,6 +577,7 @@ function bookingStatusView(booking) {
         <article class="card">${header("Confirmed", "ok")}
           <p class="note">Bring your printed summary to the visit.</p>
         </article>
+        ${aidPlanCard(booking)}
         <button class="primary" data-action="print">Print or save summary</button>
         ${error}${cancelButtons}
       </section>`;
@@ -578,6 +608,199 @@ function formatHour(hour) {
 
 
 
+
+/* ─────────────── Help paying (financial aid) ───────────────
+ * Most grants need the vet's diagnosis + written estimate, pay the clinic directly, and never refund
+ * bills already paid. So: plan before the visit (shortlist), apply after the estimate, before paying.
+ * State lives on the plan: plan.aid = { cover, county, income, budget, shortlist[], checked[] }.
+ */
+function aidState() {
+  const plan = state.plan;
+  if (!plan.aid) plan.aid = {};
+  const aid = plan.aid;
+  if (aid.county === undefined) aid.county = countyForZip(plan.pet?.zipCode) || "";
+  aid.shortlist ??= [];
+  aid.checked ??= [];
+  return aid;
+}
+
+function aidMatches(plan, level = urgencyInfo(plan.urgency).level) {
+  const aid = plan.aid || {};
+  const county = aid.county ?? countyForZip(plan.pet?.zipCode);
+  return matchAid({ level, county: county || null, inWisconsin: Boolean(county), income: aid.income || "skip", estimateHigh: estimateHigh(plan.estimate) });
+}
+
+/** My plan: "Can you cover about $X?" → Aid, or the saved aid plan. */
+function coverCard(plan) {
+  const aid = plan.aid || {};
+  const names = (aid.shortlist || []).map((id) => aidOrg(id)?.name).filter(Boolean);
+  if (names.length) {
+    return `
+      <article class="card compact aid" id="coverCard">
+        <div class="row"><p class="eyebrow">Help paying</p><a class="small" href="#aid" data-go="aid">Edit</a></div>
+        ${names.map((name) => `<div class="aid-row"><span>${esc(name)}</span></div>`).join("")}
+        <p class="note">Apply after the vet’s estimate, before you pay.</p>
+      </article>`;
+  }
+  if (aid.cover === "yes") {
+    return `
+      <article class="card compact aid" id="coverCard">
+        <div class="row"><p class="eyebrow">Help paying</p><a class="small" href="#aid" data-go="aid">See options</a></div>
+        <p class="note">You said you can cover this visit.</p>
+      </article>`;
+  }
+  const price = plan.estimate?.expectedPriceLabel;
+  return `
+    <article class="card compact" id="coverCard">
+      <p class="eyebrow">Paying for the visit</p>
+      <h2>${price ? `Can you cover about ${esc(price)}?` : "Is paying for this visit a worry?"}</h2>
+      ${price ? `<p class="note">That’s the exam price. Tests or treatment can add to it.</p>` : ""}
+      <div class="cover-choices">
+        ${[["yes", price ? "Yes" : "No, I’m fine"], ["unsure", "Not sure"], ["no", price ? "No" : "Yes"]].map(([value, label]) => `<button class="choice" data-action="cover" data-value="${value}" aria-pressed="${aid.cover === value}">${label}</button>`).join("")}
+      </div>
+    </article>`;
+}
+
+function aidView() {
+  if (!state.plan || state.plan.urgency === "emergency") return emergencyView();
+  const plan = state.plan;
+  const aid = aidState();
+  const info = urgencyInfo(plan.urgency);
+  const answered = aid.income && aid.budget;
+  const result = answered ? aidMatches(plan) : null;
+  const saved = aid.shortlist.length;
+  const choiceRow = (action, options, value) => `<div class="choices">${options.map(([key, label]) => `<button class="choice" data-action="${action}" data-value="${key}" aria-pressed="${value === key}">${esc(label)}</button>`).join("")}</div>`;
+  const covered = answered && aid.budget === "over300" && (estimateHigh(plan.estimate) ?? Infinity) <= 300;
+  return `
+    <section class="stack" id="aidView">
+      <div>
+        <h1>Help paying for ${esc(displayName(plan.pet))}’s care</h1>
+        <p class="muted">Level ${info.level} · ${esc(info.title)}${plan.estimate?.expectedPriceLabel ? ` · exam about ${esc(plan.estimate.expectedPriceLabel)}` : ""}</p>
+      </div>
+      <p class="aid-banner"><strong>Apply before you pay.</strong> Most programs pay the clinic directly and won’t refund a bill you’ve already paid.</p>
+
+      <article class="card">
+        <h2>Where do you live?</h2>
+        <label class="field"><span>County</span>
+          <select id="aidCounty">
+            ${WI_COUNTIES.map((county) => `<option value="${esc(county)}"${aid.county === county ? " selected" : ""}>${esc(county)} County, WI</option>`).join("")}
+            <option value=""${aid.county ? "" : " selected"}>Outside Wisconsin</option>
+          </select>
+        </label>
+      </article>
+      <article class="card"><h2>Household income</h2>${choiceRow("aid-income", INCOME_OPTIONS, aid.income)}<p class="note">Only used to match programs. It stays on this phone.</p></article>
+      <article class="card"><h2>What can you spend on this visit?</h2>${choiceRow("aid-budget", BUDGET_OPTIONS, aid.budget)}</article>
+
+      ${!answered ? `<p class="note">Answer both to see programs that fit.</p>` : `
+        ${covered ? `<p class="note">Your budget likely covers the exam. These can help if the vet finds more.</p>` : ""}
+        <div class="aid-section">
+          <p class="eyebrow">Use now · before or at the visit</p>
+          ${result.now.length ? result.now.map(aidMatchCard).join("") : `<p class="note">Nothing for your area yet. Ask the clinic about a payment plan.</p>`}
+        </div>
+        <div class="aid-section">
+          <p class="eyebrow">Apply after the vet’s estimate</p>
+          <p class="note">These need the vet’s diagnosis and written estimate. Save the ones you’ll use: we’ll tell you what to ask for at the visit.</p>
+          ${result.after.length ? result.after.map(aidMatchCard).join("") : `<p class="note">No grants match these answers.</p>`}
+        </div>
+        ${result.notForThis.length ? `
+          <details class="not-for-this">
+            <summary>Not for this case (${result.notForThis.length})</summary>
+            ${result.notForThis.map(({ org, why }) => `<p><strong>${esc(org.name)}</strong><br><span class="note">${esc(why)}</span></p>`).join("")}
+          </details>` : ""}
+      `}
+
+      <button class="primary" id="aidContinue" data-action="book">${saved ? `Continue to booking · ${saved} saved` : "Continue to booking"}</button>
+    </section>`;
+}
+
+function aidMatchCard({ org, fit, reasons, area }) {
+  const saved = (state.plan.aid?.shortlist || []).includes(org.id);
+  const fitLabel = { likely: "Likely fits", check: "Check fit", paused: "Paused" }[fit];
+  return `
+    <article class="card aid-card ${fit}" id="aid_${esc(org.id)}">
+      <div class="aid-head">
+        <div>
+          <h3>${esc(org.name)}</h3>
+          <div class="pills"><span class="pill ${fit}">${fitLabel}</span><span class="pill">${esc(area)}</span></div>
+        </div>
+        <button class="save-toggle" data-action="aid-toggle" data-id="${esc(org.id)}" aria-pressed="${saved}">${saved ? "Saved" : "Save"}</button>
+      </div>
+      <p><strong>${esc(org.amount)}</strong> <span class="note">· ${esc(org.timing)}</span></p>
+      <ul class="reasons">${reasons.map((reason) => `<li>${esc(reason)}</li>`).join("")}</ul>
+      ${org.note ? `<p class="note">${esc(org.note)}</p>` : ""}
+      <p class="note">${esc(org.apply)} · <a href="${esc(org.url)}" target="_blank" rel="noopener">Program site</a></p>
+    </article>`;
+}
+
+/** Booking screens: warn when a saved program won't pay this clinic. */
+function warningLines(clinicName) {
+  const warnings = clinicWarnings(state.plan?.aid?.shortlist, clinicName);
+  return warnings.map((text) => `<p class="warn-line">Heads up: ${esc(text)}</p>`).join("");
+}
+
+/** What the vet sees about paying (sent inside the booking's triage summary). */
+function aidForVet(plan) {
+  const aid = plan.aid;
+  if (!aid || (!aid.budget && !aid.shortlist?.length && !aid.cover)) return null;
+  const programs = (aid.shortlist || []).map((id) => aidOrg(id)?.name).filter(Boolean);
+  return {
+    cover: aid.cover || "",
+    budget: optionLabel(BUDGET_OPTIONS, aid.budget) || (aid.cover === "yes" ? "Can cover the exam" : ""),
+    programs,
+    fromVet: aidChecklist(aid.shortlist).fromVet
+  };
+}
+
+function aidForVetLine() {
+  const aid = aidForVet(state.plan);
+  if (!aid || (!aid.budget && !aid.programs.length)) return "";
+  return `<p class="note">They’ll also see: ${esc([aid.budget && `budget ${aid.budget}`, aid.programs.length && `planning to apply to ${aid.programs.join(", ")}`].filter(Boolean).join(" · "))}.</p>`;
+}
+
+/** Booking status: what to ask the vet for, what to gather, and where to apply. */
+function aidPlanCard(booking) {
+  const aid = state.plan?.aid;
+  if (!aid?.shortlist?.length) return "";
+  const { fromVet, fromOwner } = aidChecklist(aid.shortlist);
+  const item = (doc) => `<button class="check-item" data-action="aid-check" data-doc="${esc(doc)}" aria-pressed="${(aid.checked || []).includes(doc)}"><span class="box"></span><span>${esc(doc)}</span></button>`;
+  const visited = booking.status === "completed";
+  return `
+    <article class="card" id="aidPlan">
+      <div class="row"><h2>Your aid plan</h2><a class="small" href="#aid" data-go="aid">Edit</a></div>
+      <p class="aid-banner"><strong>${visited ? "Apply now, before you pay the bill." : "Apply after the visit, before you pay."}</strong> These programs pay the clinic directly.</p>
+      ${fromVet.length ? `<p class="eyebrow">Ask the vet for at the visit</p><div class="checklist">${fromVet.map(item).join("")}</div>` : ""}
+      ${fromOwner.length ? `<p class="eyebrow">Gather yourself</p><div class="checklist">${fromOwner.map(item).join("")}</div>` : ""}
+      <p class="eyebrow">Apply</p>
+      ${aid.shortlist.map((id) => aidOrg(id)).filter(Boolean).map((org) => `<a class="aid-row" href="${esc(org.url)}" target="_blank" rel="noopener"><span>${esc(org.name)}<br><span class="note">${esc(org.apply)}</span></span>${ICONS.chevron}</a>`).join("")}
+    </article>`;
+}
+
+/** Emergency screen: the programs built for emergencies, plus financing. */
+function emergencyAidCard() {
+  const county = countyForZip(state.plan?.pet?.zipCode || state.pet?.zipCode);
+  const result = matchAid({ level: 4, county, inWisconsin: Boolean(county), income: "skip" });
+  const list = [...result.now.filter((item) => item.org.kind !== "referral"), ...result.after].filter((item) => item.fit !== "paused");
+  return `
+    <article class="card" id="emergencyAid">
+      <h2>Paying for emergency care</h2>
+      <p class="aid-banner"><strong>Ask the ER for a written estimate, then apply before you pay.</strong> Grants pay the hospital and won’t refund a paid bill.</p>
+      ${list.map(({ org }) => `<a class="aid-row" href="${esc(org.url)}" target="_blank" rel="noopener"><span>${esc(org.name)}<br><span class="note">${esc(org.amount)}</span></span>${ICONS.chevron}</a>`).join("")}
+    </article>`;
+}
+
+function resourceGroup(title, orgs) {
+  return `
+    <article class="card">
+      <h2>${esc(title)}</h2>
+      ${orgs.map((org) => `
+        <hr>
+        <div class="row"><h3>${esc(org.name)}</h3>${org.status === "paused" ? `<span class="pill paused">Paused</span>` : ""}</div>
+        <p class="note">${esc(org.area === "national" ? "National" : org.area === "wisconsin" ? "Wisconsin" : org.areaNote || `${org.area.join(", ")} ${org.area.length > 1 ? "counties" : "County"}`)} · ${esc(org.amount)}</p>
+        <p class="muted">${esc(org.pays)}</p>
+        <p><a href="${esc(org.url)}" target="_blank" rel="noopener">Program site</a></p>`).join("")}
+    </article>`;
+}
+
 function emergencyView() {
   const reason = state.plan?.urgency === "emergency" ? `<p class="muted">${esc(state.plan.reason)}</p>` : "";
   return `
@@ -585,6 +808,7 @@ function emergencyView() {
       <h1>Call an emergency vet now</h1>
       ${reason}
       <a class="primary emergency" href="https://www.google.com/maps/search/emergency+vet+near+me">Find emergency vets near me</a>
+      ${emergencyAidCard()}
       ${state.plan?.urgency === "emergency" ? `<button class="ghost" data-action="print">Print or save summary</button><button class="ghost" data-action="start">Start a new check</button>` : ""}
     </section>`;
 }
@@ -603,10 +827,9 @@ function resources() {
           <li>Are there lower-cost options or payment plans?</li>
         </ul>
       </article>
-      <article class="card">
-        <h2>Financial assistance</h2>
-        ${assistance.map((item) => `<hr><h3>${esc(item.name)}</h3><p class="muted">${esc(item.summary)}</p><p><a href="${esc(item.url)}">Details</a></p>`).join("")}
-      </article>
+      ${state.plan && state.plan.urgency !== "emergency" ? `<button class="primary" data-go="aid">Find help for ${esc(displayName(state.plan.pet))}’s visit</button>` : ""}
+      ${resourceGroup("Wisconsin", AID_ORGS.filter((org) => org.area !== "national"))}
+      ${resourceGroup("National", AID_ORGS.filter((org) => org.area === "national"))}
       <button class="ghost" data-action="clear">Delete saved data</button>
     </section>`;
 }
