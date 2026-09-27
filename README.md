@@ -36,6 +36,7 @@ Describe the symptoms, get an urgency level from 1 to 4, related conditions, and
 <p align="center">
   <img src="docs/screenshots/home.png" alt="Owner home screen" width="260">
   <img src="docs/screenshots/my-plan.png" alt="My plan: urgency level, related conditions, estimated cost" width="260">
+  <img src="docs/screenshots/emergency-aid.png" alt="Emergency help" width="260">
 </p>
 
 ## 💸 Financial Aid
@@ -44,7 +45,6 @@ Describe the symptoms, get an urgency level from 1 to 4, related conditions, and
 
 <p align="center">
   <img src="docs/screenshots/help-paying.png" alt="Help paying: matched aid programs" width="260">
-  <img src="docs/screenshots/emergency-aid.png" alt="Paying for emergency care" width="260">
 </p>
 
 ## 📅 Appointment Management
