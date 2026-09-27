@@ -33,13 +33,27 @@ Dog owners see how urgent it is, what it costs nearby, and who can help pay, bef
 
 Describe the symptoms, get an urgency level from 1 to 4, related conditions, and published prices from clinics near you.
 
+<p align="center">
+  <img src="docs/screenshots/home.png" alt="Owner home screen" width="260">
+  <img src="docs/screenshots/my-plan.png" alt="My plan: urgency level, related conditions, estimated cost" width="260">
+</p>
+
 ## 💸 Financial Aid
 
 15 Wisconsin and national programs matched to your county, income, and urgency. Apply before you pay.
 
+<p align="center">
+  <img src="docs/screenshots/help-paying.png" alt="Help paying: matched aid programs" width="260">
+  <img src="docs/screenshots/emergency-aid.png" alt="Paying for emergency care" width="260">
+</p>
+
 ## 📅 Appointment Management
 
 Owners request a time. Vets accept it live, see the budget, and manage their calendar, patients, and chat.
+
+<p align="center">
+  <img src="docs/screenshots/vet-appointment.png" alt="Vet appointment with urgency and the owner's budget" width="260">
+</p>
 
 ---
 
