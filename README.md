@@ -71,13 +71,22 @@ The pet-owner website. A dog owner enters a profile, passes an emergency check, 
 
 ### Run
 
+Open both sides from the vet app. The start screen has **Pet owner** and **Vet**.
+
 ```bash
-cd apps/client
-python3 -m http.server 8765    # http://127.0.0.1:8765
-node --test care.test.js       # tests
+cd apps/vet
+npm install
+npm run dev                    # http://localhost:8081
 ```
 
-This is a static site (HTML, CSS, and JavaScript modules). It does not use the Vite setup in `apps/vet`, and it does not connect to a backend. Chat with a vet and live booking are still planned.
+Pet owner opens at http://localhost:8081/owner/. **Switch side** returns to the start screen. Live prices use `POST /api/prices` on this same server. Put a Gemini key in `apps/client/.env` (see `.env.example`). The key stays on the server and is not committed. A price is kept only when that exact amount is printed on the clinic page.
+
+```bash
+cd apps/client
+node --test care.test.js live-prices.test.js
+```
+
+Without the key, prices still come from the page text. If the clinic sites cannot be read, the plan shows no dollar amount instead of the stored catalog. Chat with a vet and live booking are still planned.
 
 ## Code
 

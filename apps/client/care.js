@@ -148,14 +148,15 @@ export function clinicsByDistance(zipCode) {
     .sort((a, b) => (a.miles ?? 9999) - (b.miles ?? 9999) || a.name.localeCompare(b.name));
 }
 
-export function selectPublished(service, zipCode) {
+export function selectPublished(service, zipCode, records = pricingRecords) {
   const zip = normalizeZip(zipCode);
   if (!ZIP_CENTROIDS[zip]) return { supported: false, tier: "unsupported", records: [], zip };
-  const ranked = recordsFor(service).map((record) => {
+  const ranked = records.filter((item) => item.service === service).map((record) => {
     const clinic = clinicById(record.clinicID);
     const miles = distanceFromZip(zip, clinic);
+    if (!clinic || miles == null) return null;
     return { ...record, miles, city: clinic.city, state: clinic.state };
-  }).filter((record) => record.miles != null)
+  }).filter(Boolean)
     .sort((a, b) => a.miles - b.miles || a.clinicName.localeCompare(b.clinicName));
   if (!ranked.length) return { supported: true, tier: "none", records: [], zip };
   const local = ranked.filter((record) => record.miles <= 25);
@@ -278,11 +279,13 @@ function selectionView(selection) {
   return { tier: selection.tier, prices, rangeLabel, priceLabel: rangeLabel || prices[0]?.priceLabel || COPY.serviceUnavailable };
 }
 
-export function estimateCost(mapped, zipCode) {
+export function estimateCost(mapped, zipCode, records) {
+  const catalog = Array.isArray(records) ? records : pricingRecords;
   const zip = normalizeZip(zipCode);
   const supported = Boolean(ZIP_CENTROIDS[zip]);
   const hideDollars = !supported;
-  const expectedSelection = hideDollars ? { supported: false, tier: "unsupported", records: [], zip } : selectPublished(mapped.expectedExam, zip);
+  const choose = (service) => selectPublished(service, zip, catalog);
+  const expectedSelection = hideDollars ? { supported: false, tier: "unsupported", records: [], zip } : choose(mapped.expectedExam);
   const expected = selectionView(expectedSelection);
   const farther = expected.tier === "regional" || expected.tier === "statewide";
   const regionBanner = !supported ? COPY.unavailable : expected.tier === "local" ? `${COPY.localLead}${zip}` : expected.tier === "none" ? `${COPY.localLead}${zip}` : COPY.fartherLead;
@@ -295,7 +298,7 @@ export function estimateCost(mapped, zipCode) {
   else startingStatement = `Closest published price available: ${expected.prices[0].serviceName} ${expected.prices[0].priceLabel}.`;
 
   const possibleLines = (mapped.possible || []).map((service) => {
-    const selection = hideDollars ? { records: [], tier: "unsupported" } : selectPublished(service, zip);
+    const selection = hideDollars ? { records: [], tier: "unsupported" } : choose(service);
     const view = selectionView(selection);
     return { id: service, name: SERVICE_LABELS[service], why: SERVICE_WHY[service] || "", priceLabel: view.prices.length ? view.priceLabel : COPY.serviceUnavailable, prices: view.prices, tier: view.tier };
   });
@@ -328,7 +331,7 @@ export function estimateCost(mapped, zipCode) {
   if (!hideDollars && mapped.expectedExam !== "emergencyExam") {
     for (const service of EXAMS) {
       if (service === mapped.expectedExam || service === "emergencyExam") continue;
-      const view = selectionView(selectPublished(service, zip));
+      const view = selectionView(choose(service));
       for (const price of view.prices) {
         comparison.push({ ...price, name: price.serviceName, why: UNUSED[service] || "A different published service.", tier: view.tier });
         provenance.push({ ...price, service: price.serviceName, price: price.priceLabel, applied: false, notes: `${price.notes} ${UNUSED[service] || ""}`.trim() });
@@ -347,7 +350,7 @@ export function estimateCost(mapped, zipCode) {
     website: clinic.website,
     address: clinic.address,
     hours: clinic.hours,
-    detail: clinicDetail(clinic, mapped.expectedExam, hideDollars)
+    detail: clinicDetail(clinic, mapped.expectedExam, hideDollars, catalog)
   }));
 
   const estimate = {
@@ -373,12 +376,12 @@ export function estimateCost(mapped, zipCode) {
   return estimate;
 }
 
-function clinicDetail(clinic, expected, hideDollars) {
+function clinicDetail(clinic, expected, hideDollars, records = pricingRecords) {
   if (hideDollars) return COPY.clinicUnavailable;
-  const exact = recordsFor(expected, clinic.id)[0];
+  const exact = records.find((item) => item.service === expected && item.clinicID === clinic.id);
   if (expected === "emergencyExam" && !exact) return COPY.clinicUnavailable;
   if (exact) return `${priceLabel(exact.lowPrice, exact.highPrice, exact.confidence)} · ${exact.serviceLabel}`;
-  const other = pricingRecords.find((item) => item.clinicID === clinic.id && EXAMS.has(item.service) && item.service !== expected);
+  const other = records.find((item) => item.clinicID === clinic.id && EXAMS.has(item.service) && item.service !== expected);
   if (!other) return COPY.clinicUnavailable;
   return `${COPY.clinicUnavailable} This clinic publishes ${priceLabel(other.lowPrice, other.highPrice, other.confidence)} for ${other.serviceLabel.toLowerCase()}, which is a different service.`;
 }
@@ -563,17 +566,17 @@ export function sampleLabels(answers) {
   return { areaPhrase, conditions, reading };
 }
 
-export function evaluate(pet, answers, now = new Date()) {
+export function evaluate(pet, answers, now = new Date(), options = {}) {
   if (answers.energy === "severe" || answers.detail === "redFlag" || answers.intake === "unable") {
     return emergencyPlan(pet, answers, "You reported a potentially serious sign. Contact an emergency veterinarian for immediate guidance.", now);
   }
   const symptoms = answers.symptoms || [];
   const notes = (answers.notes || "").trim();
-  const onlyMildSkin = symptoms.length === 1 && symptoms[0] === "Itchy skin" && notes === "";
   const age = Number(pet.age);
-  const mild = onlyMildSkin && answers.duration === "recent" && answers.energy === "normal" && answers.intake === "normal" && answers.detail === "mild" && age >= 1 && age < 10;
-  const concerning = answers.duration === "longer" || answers.energy === "reduced" || answers.intake === "reduced" || answers.detail === "repeated" || age < 1 || age >= 10 || notes !== "" || ["Eye irritation", "Urinary changes", "Not eating", "Low energy"].some((item) => symptoms.includes(item));
-  const urgency = mild ? "monitor" : concerning ? "soon" : "fewDays";
+  const calmAnswers = answers.energy === "normal" && answers.intake === "normal" && answers.detail === "mild" && answers.duration !== "longer";
+  const onlyMildSkin = symptoms.length === 1 && symptoms[0] === "Itchy skin" && notes === "" && calmAnswers && answers.duration === "recent" && age >= 1 && age < 10;
+  const worseAnswers = answers.duration === "longer" || answers.energy === "reduced" || answers.intake === "reduced" || answers.detail === "repeated";
+  const urgency = worseAnswers ? "soon" : onlyMildSkin ? "monitor" : "fewDays";
   const digestive = symptoms.includes("Vomiting") || symptoms.includes("Diarrhea");
   const skin = symptoms.includes("Itchy skin") || symptoms.includes("Ear discomfort");
   const topics = digestive
@@ -584,14 +587,14 @@ export function evaluate(pet, answers, now = new Date()) {
   const reason = urgency === "monitor"
     ? "This demo scenario shows mild, recent itching with otherwise normal behavior. A veterinarian should confirm whether monitoring is appropriate."
     : "Your answers suggest arranging veterinary advice. A clinician can determine the right timing and tests for your dog.";
-  return plan(pet, answers, urgency, reason, topics, now);
+  return plan(pet, answers, urgency, reason, topics, now, { records: options.records });
 }
 
 export function emergencyPlan(pet, answers, reason, now = new Date()) {
   return plan(pet, answers || emptyAnswers(), "emergency", reason, [], now);
 }
 
-function plan(pet, answers, urgency, reason, topics, now) {
+function plan(pet, answers, urgency, reason, topics, now, extra = {}) {
   const createdAt = now instanceof Date ? now.toISOString() : new Date(now).toISOString();
   return {
     createdAt,
@@ -601,7 +604,7 @@ function plan(pet, answers, urgency, reason, topics, now) {
     reason,
     topics,
     samples: sampleLabels(answers),
-    estimate: estimateCost(mapServices(answers, urgency), pet.zipCode)
+    estimate: estimateCost(mapServices(answers, urgency), pet.zipCode, extra.records)
   };
 }
 
