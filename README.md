@@ -22,16 +22,38 @@ Dog owners see how urgent it is, what it costs nearby, and who can help pay, bef
   <a href="https://inflation-players-fellowship-jane.trycloudflare.com/owner/#home">https://inflation-players-fellowship-jane.trycloudflare.com/owner/#home</a>
 </p>
 
-## Challenges
+## 1. Challenges
 
 - **Cost-of-Care Conversation** — turns sticker shock into a shared decision: the vet sees the owner's budget and aid plan before recommending care.
 - **Open Venture** — 52% of U.S. pet owners skip needed care, and nothing else connects the owner, the vet, and financial aid.
 
 ---
 
-## 🩺 Diagnosis
+## 2. Major Features
 
-Describe the symptoms, get an urgency level from 1 to 4, related conditions, and published prices from clinics near you.
+### 2.1. Diagnosis
+
+The owner answers a short check on their phone and gets an urgency level from 1 to 4, conditions the symptoms may relate to, and what a visit costs at nearby clinics.
+
+1. **Dog profile:** name, age, weight, and ZIP code.
+2. **Emergency check:** three questions about breathing, collapse or injury, and poisoning. Any "yes / unsure" goes straight to Level 4 emergency help.
+3. **Symptoms:** pick from 10 symptom chips and add notes.
+4. **Follow-ups:** how long, energy, eating and drinking, and one question specific to the symptom. Red-flag answers jump to Level 4.
+5. **Result:** fixed urgency rules set Level 1–3, the health-record datasets suggest related conditions, and prices are read live from clinic websites near the owner's ZIP. Only a price printed on the clinic's own page is shown.
+
+```mermaid
+flowchart TD
+    A[Dog profile<br/>age, weight, ZIP] --> B{Emergency check}
+    B -->|Yes / unsure| E[Level 4<br/>Emergency help]
+    B -->|No to all 3| C[Symptoms + notes]
+    C --> D[Follow-up questions]
+    D -->|Very weak, can't keep water down,<br/>blood or severe pain| E
+    D --> F[Urgency rules<br/>Level 1–3]
+    F --> G[May relate to<br/>health-record match]
+    F --> H[Live clinic prices<br/>ranked by distance]
+    G --> P[My plan]
+    H --> P
+```
 
 <p align="center">
   <img src="docs/screenshots/home.png" alt="Owner home screen" width="260">
@@ -39,17 +61,60 @@ Describe the symptoms, get an urgency level from 1 to 4, related conditions, and
   <img src="docs/screenshots/emergency-aid.png" alt="Emergency help" width="260">
 </p>
 
-## 💸 Financial Aid
+### 2.2. Financial Aid
 
-15 Wisconsin and national programs matched to your county, income, and urgency. Apply before you pay.
+Most grants need the vet's diagnosis and written estimate, pay the clinic directly, and never refund a bill already paid. So PawPlan helps the owner plan before the visit and apply before paying.
+
+1. **Can you cover it?** My plan asks "Can you cover about $X?" Yes goes straight to booking.
+2. **Three questions:** county (filled in from the ZIP), household income, and budget.
+3. **Matching:** 15 Wisconsin and national options are filtered by area, urgency level, income limit, grant cap, and whether the program is open.
+4. **Results:** "Use now" (payment plans, reduced-cost clinics) and "Apply after the vet's estimate" (grants), each with fit, amount, timing, and how to apply. Programs that don't apply are listed with the reason.
+5. **Shortlist:** the owner saves the programs they'll use. Booking warns when a saved program won't pay a clinic, and the status screen shows a checklist of what to ask the vet for.
+
+```mermaid
+flowchart TD
+    P[My plan<br/>Can you cover about $X?] -->|Yes| BK[Book a visit]
+    P -->|Not sure / No| Q[County · income · budget]
+    Q --> M{Match programs<br/>area · urgency · income · grant cap · status}
+    M --> N[Use now<br/>payment plans, reduced-cost care]
+    M --> A[Apply after the vet's estimate<br/>grants]
+    M --> X[Not for this case<br/>with the reason]
+    N --> S[Saved programs]
+    A --> S
+    S --> BK
+    BK --> W[Clinic warnings<br/>e.g. won't pay at Banfield]
+    BK --> C[Your aid plan<br/>ask the vet for diagnosis + estimate<br/>apply before you pay]
+```
 
 <p align="center">
   <img src="docs/screenshots/help-paying.png" alt="Help paying: matched aid programs" width="260">
 </p>
 
-## 📅 Appointment Management
+### 2.3. Appointment Management
 
-Owners request a time. Vets accept it live, see the budget, and manage their calendar, patients, and chat.
+Owners book without making an account. The request reaches the vet live with the urgency level, symptoms, budget, and aid plan attached.
+
+1. **Pick a time:** clinics that signed up in the vet app, with open times for the next two weeks. Taken times are hidden, so nothing is double-booked.
+2. **Request:** the owner enters a name and phone number; the phone gets a quiet anonymous sign-in and sends the request.
+3. **Vet Requests:** the request appears live, with an "On a budget" note when the owner needs help paying. The vet accepts or declines.
+4. **Status:** the owner's screen updates by itself: waiting, confirmed, or pick another time.
+5. **After accepting:** the visit is on the vet's month/week/day calendar, can be added to Apple Calendar, opens a chat with the owner, and moves the dog to Patients when marked complete.
+
+```mermaid
+sequenceDiagram
+    participant O as Owner (PawPlan)
+    participant D as Supabase
+    participant V as Vet app
+    O->>D: Open times (next 14 days)
+    D-->>O: Clinics + free slots
+    O->>D: Request booking<br/>(dog, urgency, budget, aid plan)
+    D-->>V: Live: new request
+    V->>D: Accept or decline
+    D-->>O: Status updates
+    V->>V: Calendar · Apple Calendar · chat
+    V->>D: Mark visit complete
+    D-->>V: Dog added to Patients
+```
 
 <p align="center">
   <img src="docs/screenshots/vet-appointment.png" alt="Vet appointment with urgency and the owner's budget" width="260">
@@ -57,7 +122,7 @@ Owners request a time. Vets accept it live, see the budget, and manage their cal
 
 ---
 
-## Run It
+## 3. Run It
 
 ```bash
 cd apps/vet
@@ -67,17 +132,17 @@ npm run dev        # http://localhost:8081 → Pet owner or Vet
 
 First-time setup (Supabase migrations, anonymous sign-ins, `.env`): [docs/backend-setup.md](docs/backend-setup.md). Sharing to phones: [docs/running-and-hosting.md](docs/running-and-hosting.md).
 
-## Tests
+## 4. Tests
 
 ```bash
 cd apps/client && node --test care.test.js aid.test.js live-prices.test.js
 ```
 
-## Docs
+## 5. Docs
 
 [Architecture](docs/architecture.md) · [Backend setup](docs/backend-setup.md) · [Running and hosting](docs/running-and-hosting.md) · [Data](docs/data.md) · [PRD: owner app](docs/prd-client.md) · [PRD: vet app](docs/prd-vet.md)
 
-## Team
+## 6. Team
 
 Built at Badger BuildFest 2026 by:
 
